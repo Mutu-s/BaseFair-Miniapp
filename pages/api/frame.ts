@@ -9,9 +9,6 @@ interface FrameResponse {
     target?: string
   }>
   post_url?: string
-  input?: {
-    text?: string
-  }
 }
 
 export default async function handler(
@@ -21,14 +18,13 @@ export default async function handler(
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://basefair.vercel.app'
 
   if (req.method === 'GET') {
-    // Return initial frame
     const frame: FrameResponse = {
       version: 'vNext',
       image: `${baseUrl}/images/og-image.png`,
       buttons: [
-        { label: '🎮 Play Now', action: 'link', target: baseUrl },
-        { label: '🎰 Casino', action: 'link', target: `${baseUrl}/casino` },
-        { label: '💰 Jackpot', action: 'link', target: `${baseUrl}/jackpot` },
+        { label: '🎴 Play FlipMatch', action: 'link', target: baseUrl },
+        { label: '🎮 Browse Games', action: 'link', target: `${baseUrl}/active-games` },
+        { label: '🏆 Leaderboard', action: 'link', target: `${baseUrl}/leaderboard` },
       ],
     }
 
@@ -37,49 +33,31 @@ export default async function handler(
 
   if (req.method === 'POST') {
     try {
-      const { untrustedData, trustedData } = req.body
-
-      // Parse button index
+      const { untrustedData } = req.body
       const buttonIndex = untrustedData?.buttonIndex || 1
-      const fid = untrustedData?.fid
 
-      // Handle different button actions
       let responseFrame: FrameResponse
 
       switch (buttonIndex) {
-        case 1: // Play Now
+        case 1: // Play
           responseFrame = {
             version: 'vNext',
             image: `${baseUrl}/images/og-image.png`,
             buttons: [
-              { label: '🎮 FlipMatch', action: 'link', target: `${baseUrl}/games` },
-              { label: '🎰 Casino', action: 'link', target: `${baseUrl}/casino` },
+              { label: '🤖 vs AI', action: 'link', target: baseUrl },
+              { label: '👥 Multiplayer', action: 'link', target: `${baseUrl}/active-games` },
               { label: '⬅️ Back', action: 'post' },
             ],
             post_url: `${baseUrl}/api/frame`,
           }
           break
 
-        case 2: // Casino
+        case 2: // Browse
           responseFrame = {
             version: 'vNext',
             image: `${baseUrl}/images/og-image.png`,
             buttons: [
-              { label: '🎲 Dice', action: 'link', target: `${baseUrl}/casino/dice` },
-              { label: '🪙 Coin Flip', action: 'link', target: `${baseUrl}/casino/coinflip` },
-              { label: '📊 Plinko', action: 'link', target: `${baseUrl}/casino/plinko` },
-              { label: '⬅️ Back', action: 'post' },
-            ],
-            post_url: `${baseUrl}/api/frame`,
-          }
-          break
-
-        case 3: // Jackpot
-          responseFrame = {
-            version: 'vNext',
-            image: `${baseUrl}/images/og-image.png`,
-            buttons: [
-              { label: '💰 Join Jackpot', action: 'link', target: `${baseUrl}/jackpot` },
+              { label: '🎮 Join Game', action: 'link', target: `${baseUrl}/active-games` },
               { label: '⬅️ Back', action: 'post' },
             ],
             post_url: `${baseUrl}/api/frame`,
@@ -87,14 +65,13 @@ export default async function handler(
           break
 
         default:
-          // Default/Back - return to main frame
           responseFrame = {
             version: 'vNext',
             image: `${baseUrl}/images/og-image.png`,
             buttons: [
-              { label: '🎮 Play Now', action: 'link', target: baseUrl },
-              { label: '🎰 Casino', action: 'link', target: `${baseUrl}/casino` },
-              { label: '💰 Jackpot', action: 'link', target: `${baseUrl}/jackpot` },
+              { label: '🎴 Play FlipMatch', action: 'link', target: baseUrl },
+              { label: '🎮 Browse Games', action: 'link', target: `${baseUrl}/active-games` },
+              { label: '🏆 Leaderboard', action: 'link', target: `${baseUrl}/leaderboard` },
             ],
           }
       }
@@ -106,7 +83,5 @@ export default async function handler(
     }
   }
 
-  // Method not allowed
   return res.status(405).json({ error: 'Method not allowed' })
 }
-

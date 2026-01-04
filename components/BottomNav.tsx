@@ -2,13 +2,11 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/router'
-import { useFrame } from '@/services/frameProvider'
 import { globalActions } from '@/store/globalSlices'
 import { useDispatch } from 'react-redux'
 
 const BottomNav = () => {
   const router = useRouter()
-  const { isInFrame } = useFrame()
   const dispatch = useDispatch()
   const currentPath = router.pathname
 
@@ -20,29 +18,29 @@ const BottomNav = () => {
       isActive: currentPath === '/'
     },
     { 
-      href: '/flip-match', 
+      href: '/active-games', 
       icon: '🎮', 
-      label: 'FlipMatch',
-      isActive: currentPath === '/flip-match' || currentPath.startsWith('/gameplay')
+      label: 'Browse',
+      isActive: currentPath === '/active-games'
     },
     { 
       href: '#create', 
       icon: '➕', 
-      label: 'Create',
+      label: 'New',
       isActive: false,
       isAction: true
     },
     { 
-      href: '/casino', 
-      icon: '🎰', 
-      label: 'Casino',
-      isActive: currentPath === '/casino'
-    },
-    { 
       href: '/games', 
-      icon: '👤', 
+      icon: '📋', 
       label: 'My Games',
       isActive: currentPath === '/games'
+    },
+    { 
+      href: '/leaderboard', 
+      icon: '🏆', 
+      label: 'Ranks',
+      isActive: currentPath === '/leaderboard'
     },
   ]
 
@@ -63,14 +61,14 @@ const BottomNav = () => {
             onClick={(e) => handleClick(item, e)}
             className={`flex flex-col items-center justify-center flex-1 py-2 px-1 rounded-xl transition-all duration-200
               ${item.isAction 
-                ? 'bg-gradient-to-r from-[#0052FF] to-[#0066FF] text-white scale-110 -mt-4 shadow-lg shadow-[#0052FF]/40 rounded-full w-14 h-14 !py-0'
+                ? 'bg-gradient-to-r from-[#0052FF] to-[#3B82F6] text-white scale-110 -mt-5 shadow-lg shadow-[#0052FF]/40 rounded-full w-14 h-14 !py-0'
                 : item.isActive 
                   ? 'text-[#0052FF]' 
-                  : 'text-gray-400 hover:text-gray-200'
+                  : 'text-gray-500 hover:text-gray-300'
               }
             `}
           >
-            <span className={`text-xl ${item.isAction ? 'text-2xl' : ''}`}>{item.icon}</span>
+            <span className={`${item.isAction ? 'text-2xl' : 'text-xl'}`}>{item.icon}</span>
             {!item.isAction && (
               <span className={`text-[10px] mt-0.5 font-medium ${item.isActive ? 'text-[#0052FF]' : ''}`}>
                 {item.label}
@@ -84,4 +82,3 @@ const BottomNav = () => {
 }
 
 export default BottomNav
-
