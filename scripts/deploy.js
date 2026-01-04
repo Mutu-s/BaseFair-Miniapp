@@ -39,9 +39,9 @@ async function main() {
     
     console.log('✅ Network: Base Mainnet (Chain ID: 8453)')
 
-    // Get the contract factory (Mission X version)
+    // Get the contract factory (Lite version for size optimization)
     console.log('\n📦 Getting contract factory...')
-    const FlipMatch = await hre.ethers.getContractFactory('contracts/FlipMatch.sol:FlipMatch')
+    const FlipMatch = await hre.ethers.getContractFactory('contracts/FlipMatchLite.sol:FlipMatchLite')
     
     // AI address (immutable, set in constructor)
     const AI_ADDRESS = '0x1111111111111111111111111111111111111111'

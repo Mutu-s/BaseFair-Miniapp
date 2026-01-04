@@ -1,6 +1,6 @@
 {
   "mainnet": {
-    "flipmatchContract": "",
+    "flipmatchContract": "0x47ca2368266C19B79F2BCBC7A6ee5288513A757D",
     "mockPythVRF": "0xbB9A2e35EDEa5e02985B12D5956f42C2793c5E64",
     "casinoTreasury": "0x52F9E3A4663df9215aF28E4EA8829DcEe8302c2c",
     "casinoGames": {
