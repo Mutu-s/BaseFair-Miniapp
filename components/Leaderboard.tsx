@@ -254,7 +254,7 @@ const Leaderboard: React.FC = () => {
                   </div>
                   <div className="text-right ml-4">
                     <div className="text-2xl font-extrabold bg-gradient-to-r from-primary-400 to-secondary-400 bg-clip-text text-transparent mb-1">
-                      {entry.totalEarnings.toFixed(4)} MON
+                      {entry.totalEarnings.toFixed(4)} ETH
                     </div>
                     <div className="text-xs text-gray-400 font-medium">Total Earnings</div>
                   </div>

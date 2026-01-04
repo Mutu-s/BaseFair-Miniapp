@@ -164,7 +164,7 @@ const CasinoPage: NextPage = () => {
     }
 
     if (!validateBetAmount(betAmount, CasinoGameType.COINFLIP)) {
-      alert(`Bet amount must be between ${config.minBet} and ${config.maxBet} MON`)
+      alert(`Bet amount must be between ${config.minBet} and ${config.maxBet} ETH`)
       return
     }
 
@@ -383,7 +383,7 @@ const CasinoPage: NextPage = () => {
     }
 
     if (!validateBetAmount(betAmount, CasinoGameType.DICE)) {
-      alert(`Bet amount must be between ${config.minBet} and ${config.maxBet} MON`)
+      alert(`Bet amount must be between ${config.minBet} and ${config.maxBet} ETH`)
       return
     }
 
@@ -500,7 +500,7 @@ const CasinoPage: NextPage = () => {
     }
 
     if (!validateBetAmount(betAmount, CasinoGameType.PLINKO)) {
-      alert(`Bet amount must be between ${config.minBet} and ${config.maxBet} MON`)
+      alert(`Bet amount must be between ${config.minBet} and ${config.maxBet} ETH`)
       return
     }
 
@@ -604,7 +604,7 @@ const CasinoPage: NextPage = () => {
     }
 
     if (!validateBetAmount(betAmount, CasinoGameType.SLOTS)) {
-      alert(`Bet amount must be between ${config.minBet} and ${config.maxBet} MON`)
+      alert(`Bet amount must be between ${config.minBet} and ${config.maxBet} ETH`)
       return
     }
 
@@ -1094,7 +1094,7 @@ const CasinoPage: NextPage = () => {
                 <div className="text-left">
                   <div className="text-[10px] md:text-xs text-gray-400 font-semibold uppercase tracking-wider">Treasury Balance</div>
                   <div className="text-lg md:text-xl font-bold bg-gradient-to-r from-primary-400 to-secondary-400 bg-clip-text text-transparent">
-                    {treasuryBalance} MON
+                    {treasuryBalance} ETH
                   </div>
                 </div>
               </div>
@@ -1170,14 +1170,14 @@ const CasinoPage: NextPage = () => {
                                   </td>
                                   <td className="px-4 py-3 text-center whitespace-nowrap">
                                     {config ? (
-                                      <span className="text-xs font-semibold text-gray-200">{parseFloat(config.minBet).toFixed(2)} MON</span>
+                                      <span className="text-xs font-semibold text-gray-200">{parseFloat(config.minBet).toFixed(2)} ETH</span>
                                     ) : (
                                       <span className="text-[10px] text-gray-500">-</span>
                                     )}
                                   </td>
                                   <td className="px-4 py-3 text-center whitespace-nowrap">
                                     {config ? (
-                                      <span className="text-xs font-semibold text-gray-200">{parseFloat(config.maxBet).toFixed(2)} MON</span>
+                                      <span className="text-xs font-semibold text-gray-200">{parseFloat(config.maxBet).toFixed(2)} ETH</span>
                                     ) : (
                                       <span className="text-[10px] text-gray-500">-</span>
                                     )}
@@ -1260,11 +1260,11 @@ const CasinoPage: NextPage = () => {
                               </div>
                               <div className="bg-dark-800/50 rounded-lg p-2.5">
                                 <div className="text-xs text-gray-400 mb-1">Min Bet</div>
-                                <div className="text-sm font-bold text-gray-200">{config ? parseFloat(config.minBet).toFixed(2) : '1.00'} MON</div>
+                                <div className="text-sm font-bold text-gray-200">{config ? parseFloat(config.minBet).toFixed(2) : '1.00'} ETH</div>
                               </div>
                               <div className="bg-dark-800/50 rounded-lg p-2.5">
                                 <div className="text-xs text-gray-400 mb-1">Max Bet</div>
-                                <div className="text-sm font-bold text-gray-200">{config ? parseFloat(config.maxBet).toFixed(2) : '500.00'} MON</div>
+                                <div className="text-sm font-bold text-gray-200">{config ? parseFloat(config.maxBet).toFixed(2) : '500.00'} ETH</div>
                               </div>
                             </div>
                           )}
@@ -1394,7 +1394,7 @@ const CasinoPage: NextPage = () => {
                                     style={{ pointerEvents: loading ? 'none' : 'auto' }}
                                   />
                                   <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1 pointer-events-none">
-                                    <span className="text-[10px] font-bold text-primary-400">MON</span>
+                                    <span className="text-[10px] font-bold text-primary-400">ETH</span>
                                   </div>
                                 </div>
                               </div>
@@ -1422,7 +1422,7 @@ const CasinoPage: NextPage = () => {
                                       }`}
                                     >
                                       <span className="block leading-tight">{amount}</span>
-                                      <span className="text-[8px] opacity-70 leading-tight">MON</span>
+                                      <span className="text-[8px] opacity-70 leading-tight">ETH</span>
                                     </button>
                                   ))}
                                 </div>
@@ -1454,11 +1454,11 @@ const CasinoPage: NextPage = () => {
                                   </h3>
                                   {gameResult.won ? (
                                     <div className="inline-flex items-center gap-2 px-4 py-2 bg-success-500/20 border-2 border-success-500/40 rounded-lg mb-3">
-                                      <span className="text-lg font-bold text-success-200">+{parseFloat(gameResult.payout).toFixed(4)} MON</span>
+                                      <span className="text-lg font-bold text-success-200">+{parseFloat(gameResult.payout).toFixed(4)} ETH</span>
                                     </div>
                                   ) : (
                                     <div className="inline-flex items-center gap-2 px-4 py-2 bg-error-500/20 border-2 border-error-500/40 rounded-lg mb-3">
-                                      <span className="text-sm font-bold text-error-300">-{parseFloat(betAmount).toFixed(4)} MON</span>
+                                      <span className="text-sm font-bold text-error-300">-{parseFloat(betAmount).toFixed(4)} ETH</span>
                                     </div>
                                   )}
                                 </div>

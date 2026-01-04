@@ -183,11 +183,11 @@ const Page: NextPage = () => {
                         <div className="space-y-4 mb-6">
                           <div className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-primary-500/10 to-primary-600/5 border border-primary-500/20">
                             <span className="text-gray-400 font-medium">💰 Stake:</span>
-                            <span className="text-primary-400 font-extrabold text-lg">{gameItem.stake} MON</span>
+                            <span className="text-primary-400 font-extrabold text-lg">{gameItem.stake} ETH</span>
                           </div>
                           <div className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-success-500/10 to-success-600/5 border border-success-500/20">
                             <span className="text-gray-400 font-medium">🏆 Prize:</span>
-                            <span className="text-success-400 font-extrabold text-lg">{gameItem.totalPrize} MON</span>
+                            <span className="text-success-400 font-extrabold text-lg">{gameItem.totalPrize} ETH</span>
                           </div>
                           {gameItem.winner && gameItem.winner !== '0x0000000000000000000000000000000000000000' && (
                             <div className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-yellow-500/10 to-yellow-600/5 border border-yellow-500/20">

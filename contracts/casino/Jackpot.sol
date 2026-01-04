@@ -18,7 +18,7 @@ contract Jackpot is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     IPythVRF public pythVRF;
-    address public token; // address(0) = native MON
+    address public token; // address(0) = native ETH
 
     uint256 public totalPool;
     uint256 public totalEntries;

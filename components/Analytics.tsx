@@ -169,7 +169,7 @@ const Analytics: React.FC = () => {
           <StatCard
             icon={<FaCoins size={20} />}
             label="Total Volume"
-            value={`${analytics.totalVolume.toFixed(2)} MON`}
+            value={`${analytics.totalVolume.toFixed(2)} ETH`}
           />
           <StatCard
             icon={<FaChartLine size={20} />}
@@ -201,7 +201,7 @@ const Analytics: React.FC = () => {
             <div className="flex justify-between items-center py-2">
               <span className="text-gray-300 font-medium tracking-wide">Average Stake</span>
               <span className="font-bold text-primary-300 tracking-tight">
-                {analytics.averageStake.toFixed(4)} MON
+                {analytics.averageStake.toFixed(4)} ETH
               </span>
             </div>
           </div>
@@ -229,7 +229,7 @@ const Analytics: React.FC = () => {
                   <div>
                     <div className="text-xs text-gray-400 mb-1 font-medium">Earnings</div>
                     <div className="text-base md:text-lg font-bold text-primary-300 tracking-tight">
-                      {analytics.topWinner.earnings.toFixed(4)} MON
+                      {analytics.topWinner.earnings.toFixed(4)} ETH
                     </div>
                   </div>
                 </div>
@@ -249,19 +249,19 @@ const Analytics: React.FC = () => {
           <div className="p-4 bg-dark-800/60 rounded-lg border border-dark-700/70">
             <div className="text-sm text-gray-300 mb-1 font-semibold tracking-wide">Total Volume</div>
             <div className="text-xl md:text-2xl font-bold text-primary-300 tracking-tight">
-              {analytics.totalVolume.toFixed(4)} MON
+              {analytics.totalVolume.toFixed(4)} ETH
             </div>
           </div>
           <div className="p-4 bg-dark-800/60 rounded-lg border border-dark-700/70">
             <div className="text-sm text-gray-300 mb-1 font-semibold tracking-wide">Total Prizes Distributed</div>
             <div className="text-xl md:text-2xl font-bold text-success-300 tracking-tight">
-              {analytics.totalPrizes.toFixed(4)} MON
+              {analytics.totalPrizes.toFixed(4)} ETH
             </div>
           </div>
           <div className="p-4 bg-dark-800/60 rounded-lg border border-dark-700/70">
             <div className="text-sm text-gray-300 mb-1 font-semibold tracking-wide">Platform Revenue</div>
             <div className="text-xl md:text-2xl font-bold text-accent-300 tracking-tight">
-              {(analytics.totalVolume - analytics.totalPrizes).toFixed(4)} MON
+              {(analytics.totalVolume - analytics.totalPrizes).toFixed(4)} ETH
             </div>
           </div>
         </div>

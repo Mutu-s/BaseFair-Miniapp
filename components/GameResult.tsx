@@ -40,14 +40,14 @@ const GameResult: React.FC<ComponentProps> = ({ game, scores }) => {
               <FaTrophy size={16} className="text-success-400" />
               Total Prize
             </p>
-            <p className="text-success-400 font-extrabold text-xl">{game.totalPrize} MON</p>
+            <p className="text-success-400 font-extrabold text-xl">{game.totalPrize} ETH</p>
           </div>
           <div className="p-4 rounded-xl bg-gradient-to-br from-accent-500/10 to-accent-600/5 border border-accent-500/20">
             <p className="text-gray-400 text-sm mb-3 flex items-center gap-2 font-medium">
               <FaCoins size={16} className="text-accent-400" />
               Stake
             </p>
-            <p className="text-primary-400 font-extrabold text-xl">{game.stake} MON</p>
+            <p className="text-primary-400 font-extrabold text-xl">{game.stake} ETH</p>
           </div>
         </div>
 
@@ -70,7 +70,7 @@ const GameResult: React.FC<ComponentProps> = ({ game, scores }) => {
                 </p>
                 {game.winnerPrize && (
                   <p className="text-primary-400 font-bold text-xl mb-2">
-                    💰 {game.winnerPrize.toFixed(4)} MON Won
+                    💰 {game.winnerPrize.toFixed(4)} ETH Won
                   </p>
                 )}
                 <p className="text-gray-400 text-sm">

@@ -247,12 +247,12 @@ const CasinoVRFVerification: React.FC<CasinoVRFVerificationProps> = ({ gameType,
 
               <div className="flex items-center justify-between py-1.5 px-2 bg-dark-800/50 rounded border border-dark-700/50">
                 <span className="text-gray-400">Bet Amount:</span>
-                <span className="text-gray-200 font-mono">{parseFloat(gameState.betAmount).toFixed(4)} MON</span>
+                <span className="text-gray-200 font-mono">{parseFloat(gameState.betAmount).toFixed(4)} ETH</span>
               </div>
 
               <div className="flex items-center justify-between py-1.5 px-2 bg-dark-800/50 rounded border border-dark-700/50">
                 <span className="text-gray-400">Payout:</span>
-                <span className="text-gray-200 font-mono">{parseFloat(gameState.payout).toFixed(4)} MON</span>
+                <span className="text-gray-200 font-mono">{parseFloat(gameState.payout).toFixed(4)} ETH</span>
               </div>
 
               {showDetails && (

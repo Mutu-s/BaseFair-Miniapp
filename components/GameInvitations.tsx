@@ -61,7 +61,7 @@ const GameInvitations: React.FC<ComponentProps> = ({ invitations }) => {
                   <div>
                     <p className="text-sm text-gray-400">From</p>
                     <p className="font-semibold">Game #{invitation.gameId}</p>
-                    <p className="text-sm text-blue-500">Stake: {invitation.stake} MON</p>
+                    <p className="text-sm text-blue-500">Stake: {invitation.stake} ETH</p>
                   </div>
                 </div>
 

@@ -38,7 +38,7 @@ contract Crash is Ownable, ReentrancyGuard {
 
     GameConfig public config;
     IPythVRF public pythVRF;
-    address public token; // address(0) = native MON
+    address public token; // address(0) = native ETH
 
     uint256 public gameCounter;
     uint256 public prizePool;

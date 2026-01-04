@@ -30,7 +30,7 @@ async function main() {
     if (!amountStr) {
       console.error('❌ Error: Amount is required');
       console.log('\nUsage:');
-      console.log('  yarn hardhat run scripts/deposit-house-balance.js --network <network> -- --amount <AMOUNT_IN_MON>');
+      console.log('  yarn hardhat run scripts/deposit-house-balance.js --network <network> -- --amount <AMOUNT_IN_ETH>');
       console.log('  OR: AMOUNT=10 yarn hardhat run scripts/deposit-house-balance.js --network <network>');
       console.log('\nExample:');
       console.log('  yarn hardhat run scripts/deposit-house-balance.js --network monad-testnet -- --amount 10');
@@ -61,7 +61,7 @@ async function main() {
     // Check deployer balance
     const deployerBalance = await hre.ethers.provider.getBalance(deployer.address);
     const deployerBalanceFormatted = hre.ethers.formatEther(deployerBalance);
-    console.log(`💼 Deployer Balance: ${deployerBalanceFormatted} MON`);
+    console.log(`💼 Deployer Balance: ${deployerBalanceFormatted} ETH`);
     
     // Get contract address
     const flipMatchAddress = isTestnet 
@@ -91,21 +91,21 @@ async function main() {
     // Get current house balance
     const currentHouseBalance = await flipMatch.houseBalance();
     const currentHouseBalanceFormatted = hre.ethers.formatEther(currentHouseBalance);
-    console.log(`🏠 Current House Balance: ${currentHouseBalanceFormatted} MON`);
+    console.log(`🏠 Current House Balance: ${currentHouseBalanceFormatted} ETH`);
     
     // Convert amount to wei
     const amountWei = hre.ethers.parseEther(amount.toString());
     
     // Check if deployer has enough balance (including gas)
-    const gasReserve = hre.ethers.parseEther('0.01'); // Reserve 0.01 MON for gas
+    const gasReserve = hre.ethers.parseEther('0.01'); // Reserve 0.01 ETH for gas
     if (deployerBalance < amountWei + gasReserve) {
       console.error(`❌ Error: Insufficient balance!`);
-      console.log(`   Required: ${hre.ethers.formatEther(amountWei + gasReserve)} MON (${amount} MON + 0.01 MON gas)`);
-      console.log(`   Available: ${deployerBalanceFormatted} MON`);
+      console.log(`   Required: ${hre.ethers.formatEther(amountWei + gasReserve)} ETH (${amount} ETH + 0.01 ETH gas)`);
+      console.log(`   Available: ${deployerBalanceFormatted} ETH`);
       process.exit(1);
     }
     
-    console.log(`\n💸 Depositing: ${amount} MON`);
+    console.log(`\n💸 Depositing: ${amount} ETH`);
     console.log(`   Amount in Wei: ${amountWei.toString()}\n`);
     
     // Deposit house balance
@@ -128,8 +128,8 @@ async function main() {
     
     console.log('📊 Updated Balance:');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log(`🏠 House Balance: ${newHouseBalanceFormatted} MON`);
-    console.log(`   (Increased by ${amount} MON)\n`);
+    console.log(`🏠 House Balance: ${newHouseBalanceFormatted} ETH`);
+    console.log(`   (Increased by ${amount} ETH)\n`);
     
     // Explorer link
     const explorerBase = isTestnet 

@@ -16,7 +16,7 @@ async function main() {
     console.log('Deploying with account:', deployer.address);
     
     const balance = await hre.ethers.provider.getBalance(deployer.address);
-    console.log('Account balance:', hre.ethers.formatEther(balance), 'MON\n');
+    console.log('Account balance:', hre.ethers.formatEther(balance), 'ETH\n');
     
     // Get the contract factory
     const MockPythVRF = await hre.ethers.getContractFactory('contracts/MockPythVRF.sol:MockPythVRF');

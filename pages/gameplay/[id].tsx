@@ -241,7 +241,7 @@ const Page: NextPage = () => {
         return
       }
       
-      console.log(`[Join] Joining game ${gameData.id} with password, stake ${stakeAmount} MON`)
+      console.log(`[Join] Joining game ${gameData.id} with password, stake ${stakeAmount} ETH`)
       
       // joinGame will send stake amount (msg.value) and join the game in one transaction
       const txHash = await joinGame(gameData.id, stakeAmount, joinPassword.trim())
@@ -271,7 +271,7 @@ const Page: NextPage = () => {
       setJoinPassword('')
       
       // Show success message
-      alert(`Successfully joined the game! Stake: ${gameData.stake} MON`)
+      alert(`Successfully joined the game! Stake: ${gameData.stake} ETH`)
     } catch (error: any) {
       console.error('Join game error:', error)
       const errorMsg = error?.message || error?.reason || 'Failed to join game. Please check the password.'
@@ -1187,7 +1187,7 @@ const Page: NextPage = () => {
               </div>
               <div className="p-4 rounded-xl bg-gradient-to-br from-accent-500/20 to-accent-600/10 border border-accent-500/30">
                 <div className="text-gray-400 mb-2 text-sm font-semibold">💰 Stake</div>
-                <div className="text-3xl font-extrabold text-accent-400">{gameData?.stake} MON</div>
+                <div className="text-3xl font-extrabold text-accent-400">{gameData?.stake} ETH</div>
               </div>
             </div>
           </div>
@@ -1401,7 +1401,7 @@ const Page: NextPage = () => {
                     throw new Error('Invalid stake amount. Please refresh the page and try again.')
                   }
                   
-                  console.log(`[Join] Joining game ${gameData.id} with stake ${stakeAmount} MON`)
+                  console.log(`[Join] Joining game ${gameData.id} with stake ${stakeAmount} ETH`)
                   
                   // joinGame will send stake amount (msg.value) and join the game in one transaction
                   const txHash = await joinGame(gameData.id, stakeAmount, '')
@@ -1428,7 +1428,7 @@ const Page: NextPage = () => {
                   }
                   
                   // Show success message
-                  alert(`Successfully joined the game! Stake: ${gameData.stake} MON`)
+                  alert(`Successfully joined the game! Stake: ${gameData.stake} ETH`)
                 } catch (error: any) {
                   console.error('Join game error:', error)
                   const errorMsg = error?.message || error?.reason || 'Failed to join game. Please try again.'
@@ -1442,7 +1442,7 @@ const Page: NextPage = () => {
               <FaCheckCircle size={16} />
               {isSubmitting 
                 ? 'Joining...' 
-                : `Join Game & Pay Stake (${gameData.stake} MON)`}
+                : `Join Game & Pay Stake (${gameData.stake} ETH)`}
             </button>
           )}
 
@@ -1686,7 +1686,7 @@ const Page: NextPage = () => {
                   className="btn-primary flex-1 font-bold"
                   disabled={isSubmitting || !joinPassword.trim()}
                 >
-                  {isSubmitting ? 'Joining...' : `Join & Pay Stake (${gameData?.stake || 0} MON)`}
+                  {isSubmitting ? 'Joining...' : `Join & Pay Stake (${gameData?.stake || 0} ETH)`}
                 </button>
               </div>
             </div>

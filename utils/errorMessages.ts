@@ -6,7 +6,7 @@ export const getErrorMessage = (error: any): string => {
   const errorString = message.toLowerCase()
 
   const errorMap: Record<string, string> = {
-    'insufficient funds': 'Insufficient balance. Please add more MON tokens.',
+    'insufficient funds': 'Insufficient balance. Please add more ETH tokens.',
     'insufficient house balance': 'House balance is insufficient for this stake amount. Please try a smaller stake or wait for the house to be funded.',
     'user rejected': 'Transaction cancelled by user.',
     'user denied': 'Transaction denied by user.',
@@ -25,8 +25,8 @@ export const getErrorMessage = (error: any): string => {
     'vrf not fulfilled': 'VRF has not been fulfilled yet. Please wait a few seconds and try again.',
     'vrf not fulfilled yet': 'VRF has not been fulfilled yet. Please wait a few seconds and try again.',
     'already completed': 'You have already completed this game.',
-    'bet must be at least 1 mon': 'Minimum stake is 0.01 MON.',
-    'bet must be at least 0.01': 'Minimum stake is 0.01 MON.',
+    'bet must be at least 1 mon': 'Minimum stake is 0.01 ETH.',
+    'bet must be at least 0.01': 'Minimum stake is 0.01 ETH.',
     'players must be between 2 and 4': 'Number of players must be between 2 and 4.',
     'ai games must have exactly 2 players': 'AI games must have exactly 2 players.',
     'incorrect password': 'Incorrect password. Please check and try again.',

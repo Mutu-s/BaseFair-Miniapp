@@ -25,7 +25,7 @@ import './interfaces/IPythVRF.sol';
  */
 contract FlipMatch is Ownable, ReentrancyGuard {
     // Constants
-    uint256 public constant MIN_BET = 0.01 ether; // 0.01 MON (Mission X: UX-friendly for demo)
+    uint256 public constant MIN_BET = 0.01 ether; // 0.01 ETH
     uint256 public constant MAX_PLAYERS = 5;
     uint256 public constant MIN_PLAYERS = 1;
     uint256 public constant COMMISSION_PCT = 10;
@@ -311,7 +311,7 @@ contract FlipMatch is Ownable, ReentrancyGuard {
         uint256 _durationHours,
         string memory _password
     ) external payable nonReentrant {
-        require(msg.value >= MIN_BET, "Bet must be at least 1 MON");
+        require(msg.value >= MIN_BET, "Bet must be at least 0.01 ETH");
         require(_maxPlayers >= MIN_PLAYERS && _maxPlayers <= MAX_PLAYERS, "Invalid player count");
         
         if (_gameType == GameType.AI_VS_PLAYER) {

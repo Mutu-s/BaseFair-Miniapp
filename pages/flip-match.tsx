@@ -240,7 +240,7 @@ const FlipMatchPage: NextPage = () => {
                 </div>
                 <div className="flex-1">
                   <div className="text-xs text-gray-400 font-medium">Total Prize</div>
-                  <div className="text-2xl font-extrabold text-success-300">{stats.totalPrize.toFixed(2)} MON</div>
+                  <div className="text-2xl font-extrabold text-success-300">{stats.totalPrize.toFixed(2)} ETH</div>
                 </div>
               </div>
             </div>

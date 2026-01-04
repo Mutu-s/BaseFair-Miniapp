@@ -204,14 +204,14 @@ const GameList: React.FC<GameListProps> = ({ games, showTitle = true }) => {
                             <FaCoins size={14} className="text-primary-400" />
                             Stake
                           </span>
-                          <span className="text-primary-300 font-extrabold text-sm">{gameItem.stake} MON</span>
+                          <span className="text-primary-300 font-extrabold text-sm">{gameItem.stake} ETH</span>
                         </div>
                         <div className="flex items-center justify-between p-2.5 rounded-lg bg-gradient-to-r from-success-500/15 to-success-600/10 border border-success-500/30">
                           <span className="text-gray-400 flex items-center gap-2 text-xs font-semibold">
                             <FaTrophy size={14} className="text-success-400" />
                             Prize
                           </span>
-                          <span className="text-success-300 font-extrabold text-sm">{gameItem.totalPrize} MON</span>
+                          <span className="text-success-300 font-extrabold text-sm">{gameItem.totalPrize} ETH</span>
                         </div>
                       </>
                     )}
@@ -222,7 +222,7 @@ const GameList: React.FC<GameListProps> = ({ games, showTitle = true }) => {
                           <FaGift size={14} className="text-success-400" />
                           Prize Pool
                         </span>
-                        <span className="text-success-300 font-extrabold text-sm">{gameItem.totalPrize} MON</span>
+                        <span className="text-success-300 font-extrabold text-sm">{gameItem.totalPrize} ETH</span>
                       </div>
                     )}
 

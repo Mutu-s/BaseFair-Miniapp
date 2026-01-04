@@ -29,7 +29,7 @@ async function main() {
     const houseBalance = await flipMatch.houseBalance();
     const houseBalanceFormatted = hre.ethers.formatEther(houseBalance);
     
-    // Get contract balance (total MON in contract)
+    // Get contract balance (total ETH in contract)
     const contractBalance = await hre.ethers.provider.getBalance(flipMatchAddress);
     const contractBalanceFormatted = hre.ethers.formatEther(contractBalance);
     
@@ -39,9 +39,9 @@ async function main() {
     
     console.log('\n💰 Balance Information:');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log(`🏠 House Balance:     ${houseBalanceFormatted} MON`);
-    console.log(`💼 Treasury Balance:  ${treasuryBalanceFormatted} MON`);
-    console.log(`📦 Contract Balance:   ${contractBalanceFormatted} MON`);
+    console.log(`🏠 House Balance:     ${houseBalanceFormatted} ETH`);
+    console.log(`💼 Treasury Balance:  ${treasuryBalanceFormatted} ETH`);
+    console.log(`📦 Contract Balance:   ${contractBalanceFormatted} ETH`);
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
     
     // Calculate minimum required balance for different stake amounts
@@ -63,7 +63,7 @@ async function main() {
       const canSupport = houseBalance >= requiredHouseBalance;
       const status = canSupport ? '✅' : '❌';
       
-      console.log(`${status} ${stake.toString().padEnd(10)} MON | ${maxPayoutFormatted.padEnd(10)} MON | ${requiredFormatted} MON`);
+      console.log(`${status} ${stake.toString().padEnd(10)} ETH | ${maxPayoutFormatted.padEnd(10)} ETH | ${requiredFormatted} ETH`);
     });
     
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
@@ -73,12 +73,12 @@ async function main() {
     const minRequired = (MIN_BET * BigInt(200 - HOUSE_EDGE_PCT)) / 100n - MIN_BET;
     
     if (houseBalance < minRequired) {
-      console.log('⚠️  WARNING: House balance is insufficient for minimum bet (0.01 MON)');
-      console.log(`   Required: ${hre.ethers.formatEther(minRequired)} MON`);
-      console.log(`   Current:  ${houseBalanceFormatted} MON`);
-      console.log(`   Missing:  ${hre.ethers.formatEther(minRequired - houseBalance)} MON\n`);
+      console.log('⚠️  WARNING: House balance is insufficient for minimum bet (0.01 ETH)');
+      console.log(`   Required: ${hre.ethers.formatEther(minRequired)} ETH`);
+      console.log(`   Current:  ${houseBalanceFormatted} ETH`);
+      console.log(`   Missing:  ${hre.ethers.formatEther(minRequired - houseBalance)} ETH\n`);
       console.log('💡 To deposit house balance, run:');
-      console.log(`   yarn hardhat run scripts/deposit-house-balance.js --network ${networkName} -- --amount <AMOUNT_IN_MON>\n`);
+      console.log(`   yarn hardhat run scripts/deposit-house-balance.js --network ${networkName} -- --amount <AMOUNT_IN_ETH>\n`);
     } else {
       console.log('✅ House balance is sufficient for minimum bets!\n');
     }

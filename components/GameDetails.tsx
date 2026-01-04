@@ -70,7 +70,7 @@ const GameDetails: React.FC = () => {
                     <FaCoins size={14} />
                     Stake:
                   </span>
-                  <span className="text-primary-400 font-semibold">{game.stake} MON</span>
+                  <span className="text-primary-400 font-semibold">{game.stake} ETH</span>
                 </div>
                 
                 <div className="flex items-center justify-between py-2 border-b border-dark-800">
@@ -78,7 +78,7 @@ const GameDetails: React.FC = () => {
                     <FaTrophy size={14} />
                     Total Prize:
                   </span>
-                  <span className="text-success-400 font-semibold">{game.totalPrize} MON</span>
+                  <span className="text-success-400 font-semibold">{game.totalPrize} ETH</span>
                 </div>
                 
                 <div className="flex items-center justify-between py-2 border-b border-dark-800">
