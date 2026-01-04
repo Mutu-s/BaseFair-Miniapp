@@ -10,7 +10,7 @@ import './interfaces/IPythVRF.sol';
  * @dev VRF-powered memory card game - Mission X compliant, size-optimized
  */
 contract FlipMatchLite is Ownable, ReentrancyGuard {
-    uint256 public constant MIN_BET = 0.001 ether;
+    uint256 public constant MIN_BET = 0.000003 ether; // ~$0.01 USD
     uint256 public constant MAX_PLAYERS = 5;
     uint256 public constant COMMISSION_PCT = 10;
     uint256 public constant DIFFICULTY_MODIFIER = 50;

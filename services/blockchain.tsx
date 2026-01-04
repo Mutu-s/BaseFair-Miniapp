@@ -194,16 +194,16 @@ export const createGame = async (gameParams: GameParams): Promise<string> => {
     // Parse stake as float to handle decimals
     const stakeAmount = parseFloat(stakeStr)
     if (isNaN(stakeAmount) || stakeAmount < 0.01) {
-      throw new Error('Minimum bet must be at least 0.01 ETH')
+      throw new Error('Minimum bet must be at least 0.000003 ETH (~$0.01)')
     }
     
     // Convert to wei using parseEther which handles decimals properly
     const stake = ethers.parseEther(stakeAmount.toString())
     
-    // Verify the stake is at least 0.01 ether (0.01 ETH) - Mission X
-    const minBet = ethers.parseEther('0.01')
+    // Verify the stake is at least 0.000003 ether (~$0.01 USD)
+    const minBet = ethers.parseEther('0.000003')
     if (stake < minBet) {
-      throw new Error('Minimum bet must be at least 0.01 ETH')
+      throw new Error('Minimum bet must be at least 0.000003 ETH (~$0.01)')
     }
     
     // Check if user has enough balance (including gas fees)
@@ -218,7 +218,7 @@ export const createGame = async (gameParams: GameParams): Promise<string> => {
       throw new Error(
         `Insufficient balance. You have ${balanceFormatted.toFixed(4)} ETH, but need at least ${requiredTotal.toFixed(4)} ETH (${stakeFormatted.toFixed(4)} ETH stake + ${gasReserveAmount.toFixed(3)} ETH gas). ` +
         `You need ${shortfall.toFixed(4)} ETH more. ` +
-        `Tip: Try a lower stake amount (minimum 0.01 ETH) or add more ETH to your wallet.`
+        `Tip: Try a lower stake amount (minimum 0.000003 ETH) or add more ETH to your wallet.`
       )
     }
     

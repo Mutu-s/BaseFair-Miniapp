@@ -80,8 +80,8 @@ const CreateGame: React.FC = () => {
 
     // Validate stake amount
     const stakeAmount = Number(game.stake)
-    if (!game.stake || isNaN(stakeAmount) || stakeAmount < 0.01) {
-      setError('Stake amount must be at least 0.01 ETH')
+    if (!game.stake || isNaN(stakeAmount) || stakeAmount < 0.000003) {
+      setError('Stake amount must be at least 0.000003 ETH (~$0.01)')
       return
     }
 
@@ -549,7 +549,7 @@ const CreateGame: React.FC = () => {
                 Stake Amount (ETH)
               </label>
               <input
-                placeholder="Minimum 0.01 ETH"
+                placeholder="Minimum 0.000003 ETH (~$0.01)"
                 type="number"
                 className="input text-sm md:text-base font-medium"
                 name="stake"
@@ -561,7 +561,7 @@ const CreateGame: React.FC = () => {
                   // Check house balance for AI games
                   if (gameMode === 'single' && game.gameType === GameType.AI_VS_PLAYER && e.target.value) {
                     const stakeValue = Number(e.target.value)
-                    if (!isNaN(stakeValue) && stakeValue >= 0.01) {
+                    if (!isNaN(stakeValue) && stakeValue >= 0.000003) {
                       setCheckingHouseBalance(true)
                       try {
                         const balance = await getHouseBalance(chainId)
@@ -573,8 +573,8 @@ const CreateGame: React.FC = () => {
                     }
                   }
                 }}
-                step={0.01}
-                min={0.01}
+                step={0.000001}
+                min={0.000003}
                 max={500}
                 required
                 disabled={isSubmitting || checkingHouseBalance}

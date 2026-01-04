@@ -84,7 +84,7 @@ const CasinoPage: NextPage = () => {
             console.error(`[Casino] ❌ Failed to load config for ${gameType}:`, error)
             // Set default config if loading fails
             configs[gameType] = {
-              minBet: '0.01',
+              minBet: '0.000003',
               maxBet: '100',
               houseEdgeBps: 250,
               paused: false,
@@ -134,7 +134,7 @@ const CasinoPage: NextPage = () => {
       }
     } else {
       // Fallback validation
-      if (numAmount < 0.01) {
+      if (numAmount < 0.000003) {
         return false
       }
       
@@ -1170,7 +1170,7 @@ const CasinoPage: NextPage = () => {
                                   </td>
                                   <td className="px-4 py-3 text-center whitespace-nowrap">
                                     {config ? (
-                                      <span className="text-xs font-semibold text-gray-200">{parseFloat(config.minBet).toFixed(2)} ETH</span>
+                                      <span className="text-xs font-semibold text-gray-200">{parseFloat(config.minBet).toFixed(6)} ETH</span>
                                     ) : (
                                       <span className="text-[10px] text-gray-500">-</span>
                                     )}
@@ -1260,7 +1260,7 @@ const CasinoPage: NextPage = () => {
                               </div>
                               <div className="bg-dark-800/50 rounded-lg p-2.5">
                                 <div className="text-xs text-gray-400 mb-1">Min Bet</div>
-                                <div className="text-sm font-bold text-gray-200">{config ? parseFloat(config.minBet).toFixed(2) : '1.00'} ETH</div>
+                                <div className="text-sm font-bold text-gray-200">{config ? parseFloat(config.minBet).toFixed(6) : '0.000003'} ETH</div>
                               </div>
                               <div className="bg-dark-800/50 rounded-lg p-2.5">
                                 <div className="text-xs text-gray-400 mb-1">Max Bet</div>
@@ -1359,7 +1359,7 @@ const CasinoPage: NextPage = () => {
                                   <div className="flex items-center gap-1.5">
                                     <div className="px-1.5 py-0.5 bg-dark-700/60 rounded border border-dark-600/50">
                                       <span className="text-[9px] text-gray-400 mr-1">Min:</span>
-                                      <span className="text-[10px] font-bold text-primary-300">{parseFloat(config.minBet).toFixed(2)}</span>
+                                      <span className="text-[10px] font-bold text-primary-300">{parseFloat(config.minBet).toFixed(6)}</span>
                                     </div>
                                     <div className="px-1.5 py-0.5 bg-dark-700/60 rounded border border-dark-600/50">
                                       <span className="text-[9px] text-gray-400 mr-1">Max:</span>
@@ -1375,7 +1375,7 @@ const CasinoPage: NextPage = () => {
                                   <input
                                     type="number"
                                     min="1"
-                                    step="0.01"
+                                    step="0.000001"
                                     value={betAmount}
                                     onChange={(e) => {
                                       e.preventDefault()

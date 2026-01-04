@@ -25,7 +25,7 @@ import './interfaces/IPythVRF.sol';
  */
 contract FlipMatch is Ownable, ReentrancyGuard {
     // Constants
-    uint256 public constant MIN_BET = 0.01 ether; // 0.01 ETH
+    uint256 public constant MIN_BET = 0.000003 ether; // ~$0.01 USD
     uint256 public constant MAX_PLAYERS = 5;
     uint256 public constant MIN_PLAYERS = 1;
     uint256 public constant COMMISSION_PCT = 10;
