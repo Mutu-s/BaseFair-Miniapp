@@ -34,10 +34,9 @@ async function main() {
     
     // Get network info
     const networkName = hre.network.name;
-    const isTestnet = networkName === 'monad-testnet';
+    const isBase = networkName === 'base';
     const explorerBase = isTestnet 
-      ? 'https://testnet.monadvision.com'
-      : 'https://monad.blockscout.com';
+      'https://basescan.org';
     
     console.log(`\n🔗 Explorer: ${explorerBase}/address/${address}\n`);
     
@@ -52,11 +51,11 @@ async function main() {
       console.warn('Could not read existing contractAddress.json, creating new one');
     }
     
-    if (!contractAddresses[networkName === 'monad-testnet' ? 'testnet' : 'mainnet']) {
-      contractAddresses[networkName === 'monad-testnet' ? 'testnet' : 'mainnet'] = {};
+if (!contractAddresses['mainnet']) {
+      contractAddresses['mainnet'] = {};
     }
-    
-    const networkKey = networkName === 'monad-testnet' ? 'testnet' : 'mainnet';
+
+    const networkKey = 'mainnet';
     contractAddresses[networkKey].mockPythVRF = address;
     
     fs.writeFileSync(contractAddressPath, JSON.stringify(contractAddresses, null, 2));

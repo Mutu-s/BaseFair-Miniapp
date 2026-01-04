@@ -33,7 +33,7 @@ async function main() {
       console.log('  yarn hardhat run scripts/deposit-house-balance.js --network <network> -- --amount <AMOUNT_IN_ETH>');
       console.log('  OR: AMOUNT=10 yarn hardhat run scripts/deposit-house-balance.js --network <network>');
       console.log('\nExample:');
-      console.log('  yarn hardhat run scripts/deposit-house-balance.js --network monad-testnet -- --amount 10');
+      console.log('  yarn hardhat run scripts/deposit-house-balance.js --network base -- --amount 0.01');
       process.exit(1);
     }
     
@@ -45,7 +45,7 @@ async function main() {
     
     // Get network name
     const networkName = hre.network.name;
-    const isTestnet = networkName === 'monad-testnet';
+    const isBase = networkName === 'base';
     
     console.log(`\n💰 Depositing House Balance on ${isTestnet ? 'TESTNET' : 'MAINNET'} (${networkName})...\n`);
     
@@ -133,8 +133,7 @@ async function main() {
     
     // Explorer link
     const explorerBase = isTestnet 
-      ? 'https://testnet.monadvision.com'
-      : 'https://monad.blockscout.com';
+      'https://basescan.org';
     
     console.log(`🔗 Transaction: ${explorerBase}/tx/${tx.hash}`);
     console.log(`🔗 Contract: ${explorerBase}/address/${flipMatchAddress}\n`);

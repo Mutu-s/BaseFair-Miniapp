@@ -5,7 +5,7 @@ async function main() {
   try {
     // Get network name
     const networkName = hre.network.name;
-    const isTestnet = networkName === 'monad-testnet';
+    const isBase = networkName === 'base';
     
     console.log(`\n🔍 Checking Pyth VRF Address on ${isTestnet ? 'TESTNET' : 'MAINNET'} (${networkName})...\n`);
     
@@ -54,8 +54,7 @@ async function main() {
     
     // Explorer link
     const explorerBase = isTestnet 
-      ? 'https://testnet.monadvision.com'
-      : 'https://monad.blockscout.com';
+      'https://basescan.org';
     
     console.log(`\n🔗 Explorer: ${explorerBase}/address/${flipMatchAddress}\n`);
     

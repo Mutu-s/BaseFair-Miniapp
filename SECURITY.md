@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-This document outlines the security architecture, threat model, and mitigation strategies for the MonadCasino platform. The system is designed to handle real economic value on Monad Mainnet with robust security measures.
+This document outlines the security architecture, threat model, and mitigation strategies for the FlipMatch platform. The system is designed to handle real economic value on Base Mainnet with robust security measures.
 
 ---
 
@@ -300,7 +300,7 @@ function placeBet() external payable {
 
 **Mitigation**:
 - ✅ DNS security extensions (DNSSEC)
-- ✅ ENS domain (if available on Monad)
+- ✅ ENS domain (Base supports ENS)
 - ✅ Multiple communication channels
 - ✅ Smart contract verification
 
@@ -564,7 +564,7 @@ function placeBet() external payable {
 
 ## Conclusion
 
-The MonadCasino platform implements multiple layers of security to protect user funds and ensure fair gameplay. Regular audits, monitoring, and incident response procedures ensure ongoing security as the platform evolves.
+The FlipMatch platform implements multiple layers of security to protect user funds and ensure fair gameplay. Regular audits, monitoring, and incident response procedures ensure ongoing security as the platform evolves.
 
 **Remember**: Security is an ongoing process, not a one-time event. Continuous monitoring, updates, and improvements are essential for maintaining a secure platform.
 

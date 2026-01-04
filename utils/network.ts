@@ -9,8 +9,7 @@ export const BASE_CHAIN_ID = BASE_MAINNET_CHAIN_ID // Alias
 
 // Legacy aliases for backward compatibility (all point to mainnet)
 export const BASE_TESTNET_CHAIN_ID = BASE_MAINNET_CHAIN_ID
-export const MONAD_MAINNET_CHAIN_ID = BASE_MAINNET_CHAIN_ID
-export const MONAD_TESTNET_CHAIN_ID = BASE_MAINNET_CHAIN_ID
+// Legacy aliases removed - use BASE_MAINNET_CHAIN_ID directly
 
 /**
  * Get current network type based on chain ID

@@ -27,12 +27,12 @@ async function main() {
     console.log('4. Eğer .env.local dosyası yoksa veya PRIVATE_KEY yoksa, deployment yapan kişiden alınmalıdır');
     console.log('\n📝 .env.local dosyası şu şekilde olmalı:');
     console.log('PRIVATE_KEY=your_private_key_here');
-    console.log('MONAD_RPC_URL=https://rpc3.monad.xyz');
+    console.log('BASE_RPC_URL=https://mainnet.base.org');
     
   } catch (error) {
     console.error('Error:', error.message);
     console.log('\n⚠️  Treasury contract\'ına erişilemedi. Kontrol edin:');
-    console.log('1. Doğru network\'e bağlı mısınız? (Monad Mainnet)');
+    console.log('1. Doğru network\'e bağlı mısınız? (Base Mainnet)');
     console.log('2. Treasury adresi doğru mu?');
     process.exit(1);
   }

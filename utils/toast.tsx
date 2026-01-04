@@ -37,7 +37,7 @@ export const showTransactionToast = (
         <p className="font-semibold">{displayMessage}</p>
         {hash && type === 'success' && (
           <a
-            href={`https://monad.blockscout.com/tx/${hash}`}
+            href={`https://basescan.org/tx/${hash}`}
             target="_blank"
             rel="noopener noreferrer"
             className="text-blue-400 hover:text-blue-300 underline text-sm mt-1 block"

@@ -14,7 +14,7 @@ const getProvider = () => {
   }
   
   // Fallback
-  const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL || 'https://rpc3.monad.xyz'
+  const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL || 'https://mainnet.base.org'
   return new ethers.JsonRpcProvider(rpcUrl)
 }
 

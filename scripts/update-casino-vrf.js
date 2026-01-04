@@ -12,7 +12,7 @@ async function main() {
     // Read contract addresses
     const contractAddressPath = './contracts/contractAddress.json';
     const addresses = JSON.parse(fs.readFileSync(contractAddressPath, 'utf8'));
-    const networkType = hre.network.name === 'monad-testnet' ? 'testnet' : 'mainnet';
+    const networkType = 'mainnet';
     const networkAddresses = addresses[networkType];
     
     if (!networkAddresses) {

@@ -2,7 +2,7 @@
  * Pyth Network Helper Utilities
  * Provides helper functions for Pyth Network VRF integration
  * 
- * Note: Pyth VRF integration will be enabled when available on Monad
+ * Note: Pyth VRF integration for Base network
  */
 
 import { ethers } from 'ethers'
@@ -20,12 +20,11 @@ export interface PythVRFConfig {
  * Get Pyth VRF contract address for a given chain
  */
 export const getPythVRFAddress = (chainId: number): string | null => {
-  // Pyth VRF addresses for Monad
+  // Pyth VRF addresses for Base
   // Using same address for both networks (if Pyth uses same contract)
   // TODO: Update with actual Pyth VRF contract addresses when available
   const addresses: Record<number, string> = {
-    143: process.env.NEXT_PUBLIC_PYTH_VRF_ADDRESS || '', // Monad Mainnet
-    10143: process.env.NEXT_PUBLIC_PYTH_VRF_ADDRESS || '', // Monad Testnet (same address)
+    8453: process.env.NEXT_PUBLIC_PYTH_VRF_ADDRESS || '', // Base Mainnet
   }
   
   return addresses[chainId] || null

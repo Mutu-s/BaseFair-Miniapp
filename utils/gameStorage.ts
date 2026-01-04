@@ -1,5 +1,5 @@
 import { GameStruct } from '@/utils/type.dt'
-import { MONAD_MAINNET_CHAIN_ID, MONAD_TESTNET_CHAIN_ID } from '@/utils/network'
+import { BASE_MAINNET_CHAIN_ID } from '@/utils/network'
 
 const STORAGE_KEY_PREFIX = 'monfair_games_'
 const STORAGE_META_KEY = 'monfair_games_meta'
