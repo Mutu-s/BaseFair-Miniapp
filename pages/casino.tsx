@@ -1531,9 +1531,6 @@ const CasinoPage: NextPage = () => {
                                         e.stopPropagation()
                                         // Get current chainId to determine explorer URL
                                         const explorerBase = 'https://basescan.org'
-                                        const _unused = chainId // Prevent unused variable warning
-                                        const _explorerBase = explorerBase // Use directly 
-                                          : 'https://monadvision.com'
                                         const url = `${explorerBase}/tx/${gameResult.txHash}`
                                         console.log('[Casino] Opening transaction:', { txHash: gameResult.txHash, chainId, explorerBase, url })
                                         window.open(url, '_blank')
