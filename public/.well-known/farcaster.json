@@ -1,19 +1,27 @@
 {
   "accountAssociation": {
     "header": "eyJmaWQiOjAsInR5cGUiOiJjdXN0b2R5Iiwia2V5IjoiMHgwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwIn0",
-    "payload": "eyJkb21haW4iOiJ5b3VyLWRvbWFpbi5jb20ifQ",
-    "signature": "placeholder_signature"
+    "payload": "eyJkb21haW4iOiJiYXNlZmFpci52ZXJjZWwuYXBwIn0",
+    "signature": "0x"
   },
   "frame": {
     "version": "1",
     "name": "BaseFair",
-    "iconUrl": "https://your-domain.com/images/base-logo.png",
-    "homeUrl": "https://your-domain.com",
-    "imageUrl": "https://your-domain.com/images/og-image.png",
-    "buttonTitle": "Play Now",
-    "splashImageUrl": "https://your-domain.com/images/splash.png",
+    "iconUrl": "https://basefair.vercel.app/images/base-logo.png",
+    "homeUrl": "https://basefair.vercel.app",
+    "imageUrl": "https://basefair.vercel.app/images/og-image.png",
+    "buttonTitle": "🎮 Play Now",
+    "splashImageUrl": "https://basefair.vercel.app/images/splash.png",
     "splashBackgroundColor": "#0a0a0f",
-    "webhookUrl": "https://your-domain.com/api/webhook"
+    "webhookUrl": "https://basefair.vercel.app/api/frame",
+    "subtitle": "Verifiably Fair Gaming",
+    "description": "Play provably fair games on Base blockchain. FlipMatch, Dice, Plinko, Crash, Slots and more!",
+    "primaryCategory": "games",
+    "tags": ["gaming", "base", "blockchain", "casino", "fair"],
+    "heroImageUrl": "https://basefair.vercel.app/images/og-image.png",
+    "tagline": "Fair Games on Base",
+    "ogTitle": "BaseFair - Provably Fair Gaming",
+    "ogDescription": "Play verifiably fair blockchain games on Base. VRF-powered randomness for true fairness.",
+    "ogImageUrl": "https://basefair.vercel.app/images/og-image.png"
   }
 }
-

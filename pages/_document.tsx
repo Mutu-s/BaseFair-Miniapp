@@ -1,7 +1,7 @@
 import { Html, Head, Main, NextScript } from 'next/document'
 
 export default function Document() {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://your-domain.com'
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://basefair.vercel.app'
   
   return (
     <Html lang="en">

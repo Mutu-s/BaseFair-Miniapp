@@ -18,13 +18,13 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://basefair.xyz'
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://basefair.vercel.app'
 
   if (req.method === 'GET') {
     // Return initial frame
     const frame: FrameResponse = {
       version: 'vNext',
-      image: `${baseUrl}/images/og-image.svg`,
+      image: `${baseUrl}/images/og-image.png`,
       buttons: [
         { label: '🎮 Play Now', action: 'link', target: baseUrl },
         { label: '🎰 Casino', action: 'link', target: `${baseUrl}/casino` },
@@ -50,7 +50,7 @@ export default async function handler(
         case 1: // Play Now
           responseFrame = {
             version: 'vNext',
-            image: `${baseUrl}/images/og-image.svg`,
+            image: `${baseUrl}/images/og-image.png`,
             buttons: [
               { label: '🎮 FlipMatch', action: 'link', target: `${baseUrl}/games` },
               { label: '🎰 Casino', action: 'link', target: `${baseUrl}/casino` },
@@ -63,7 +63,7 @@ export default async function handler(
         case 2: // Casino
           responseFrame = {
             version: 'vNext',
-            image: `${baseUrl}/images/og-image.svg`,
+            image: `${baseUrl}/images/og-image.png`,
             buttons: [
               { label: '🎲 Dice', action: 'link', target: `${baseUrl}/casino/dice` },
               { label: '🪙 Coin Flip', action: 'link', target: `${baseUrl}/casino/coinflip` },
@@ -77,7 +77,7 @@ export default async function handler(
         case 3: // Jackpot
           responseFrame = {
             version: 'vNext',
-            image: `${baseUrl}/images/og-image.svg`,
+            image: `${baseUrl}/images/og-image.png`,
             buttons: [
               { label: '💰 Join Jackpot', action: 'link', target: `${baseUrl}/jackpot` },
               { label: '⬅️ Back', action: 'post' },
@@ -90,7 +90,7 @@ export default async function handler(
           // Default/Back - return to main frame
           responseFrame = {
             version: 'vNext',
-            image: `${baseUrl}/images/og-image.svg`,
+            image: `${baseUrl}/images/og-image.png`,
             buttons: [
               { label: '🎮 Play Now', action: 'link', target: baseUrl },
               { label: '🎰 Casino', action: 'link', target: `${baseUrl}/casino` },
