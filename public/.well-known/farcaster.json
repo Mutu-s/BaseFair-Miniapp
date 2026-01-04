@@ -20,7 +20,7 @@
     "tags": ["gaming", "base", "blockchain", "casino", "fair"],
     "heroImageUrl": "https://basefair.vercel.app/images/og-image.png",
     "tagline": "Fair Games on Base",
-    "ogTitle": "BaseFair - Provably Fair Gaming",
+    "ogTitle": "BaseFair - Fair Gaming",
     "ogDescription": "Play verifiably fair blockchain games on Base. VRF-powered randomness for true fairness.",
     "ogImageUrl": "https://basefair.vercel.app/images/og-image.png"
   }
