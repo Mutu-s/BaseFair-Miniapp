@@ -1,0 +1,110 @@
+const hre = require('hardhat');
+const contractAddress = require('../contracts/contractAddress.json');
+
+async function main() {
+  try {
+    // Get network name
+    const networkName = hre.network.name;
+    const isTestnet = networkName === 'monad-testnet';
+    
+    console.log(`\n🔍 Checking House Balance on ${isTestnet ? 'TESTNET' : 'MAINNET'} (${networkName})...\n`);
+    
+    // Get contract address based on network
+    const flipMatchAddress = isTestnet 
+      ? contractAddress.testnet.flipmatchContract
+      : contractAddress.mainnet.flipmatchContract;
+    
+    if (!flipMatchAddress) {
+      console.error(`❌ FlipMatch contract address not found for ${networkName}`);
+      process.exit(1);
+    }
+    
+    console.log(`📋 FlipMatch Contract: ${flipMatchAddress}`);
+    
+    // Get FlipMatch contract
+    const FlipMatch = await hre.ethers.getContractFactory('contracts/FlipMatch.sol:FlipMatch');
+    const flipMatch = FlipMatch.attach(flipMatchAddress);
+    
+    // Get house balance
+    const houseBalance = await flipMatch.houseBalance();
+    const houseBalanceFormatted = hre.ethers.formatEther(houseBalance);
+    
+    // Get contract balance (total MON in contract)
+    const contractBalance = await hre.ethers.provider.getBalance(flipMatchAddress);
+    const contractBalanceFormatted = hre.ethers.formatEther(contractBalance);
+    
+    // Get treasury balance
+    const treasuryBalance = await flipMatch.treasuryBalance();
+    const treasuryBalanceFormatted = hre.ethers.formatEther(treasuryBalance);
+    
+    console.log('\n💰 Balance Information:');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log(`🏠 House Balance:     ${houseBalanceFormatted} MON`);
+    console.log(`💼 Treasury Balance:  ${treasuryBalanceFormatted} MON`);
+    console.log(`📦 Contract Balance:   ${contractBalanceFormatted} MON`);
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+    
+    // Calculate minimum required balance for different stake amounts
+    const HOUSE_EDGE_PCT = 5; // 5% house edge
+    const testStakes = [0.01, 0.1, 1, 10, 100];
+    
+    console.log('📊 Minimum House Balance Required for Different Stakes:');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('Stake Amount | Max Payout | Required House Balance');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    
+    testStakes.forEach(stake => {
+      const stakeWei = hre.ethers.parseEther(stake.toString());
+      const maxPayout = (stakeWei * BigInt(200 - HOUSE_EDGE_PCT)) / 100n; // stake * 1.95
+      const requiredHouseBalance = maxPayout - stakeWei; // stake * 0.95
+      const requiredFormatted = hre.ethers.formatEther(requiredHouseBalance);
+      const maxPayoutFormatted = hre.ethers.formatEther(maxPayout);
+      
+      const canSupport = houseBalance >= requiredHouseBalance;
+      const status = canSupport ? '✅' : '❌';
+      
+      console.log(`${status} ${stake.toString().padEnd(10)} MON | ${maxPayoutFormatted.padEnd(10)} MON | ${requiredFormatted} MON`);
+    });
+    
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+    
+    // Check if house balance is sufficient for minimum bet
+    const MIN_BET = hre.ethers.parseEther('0.01');
+    const minRequired = (MIN_BET * BigInt(200 - HOUSE_EDGE_PCT)) / 100n - MIN_BET;
+    
+    if (houseBalance < minRequired) {
+      console.log('⚠️  WARNING: House balance is insufficient for minimum bet (0.01 MON)');
+      console.log(`   Required: ${hre.ethers.formatEther(minRequired)} MON`);
+      console.log(`   Current:  ${houseBalanceFormatted} MON`);
+      console.log(`   Missing:  ${hre.ethers.formatEther(minRequired - houseBalance)} MON\n`);
+      console.log('💡 To deposit house balance, run:');
+      console.log(`   yarn hardhat run scripts/deposit-house-balance.js --network ${networkName} -- --amount <AMOUNT_IN_MON>\n`);
+    } else {
+      console.log('✅ House balance is sufficient for minimum bets!\n');
+    }
+    
+    // Explorer links
+    const explorerBase = isTestnet 
+      ? 'https://testnet.monadvision.com'
+      : 'https://monad.blockscout.com';
+    
+    console.log(`🔗 Explorer: ${explorerBase}/address/${flipMatchAddress}\n`);
+    
+  } catch (error) {
+    console.error('❌ Error:', error.message);
+    console.log('\n⚠️  Make sure:');
+    console.log('1. You are connected to the correct network');
+    console.log('2. Contract address is correct in contractAddress.json');
+    console.log('3. Contract is deployed and accessible');
+    process.exit(1);
+  }
+}
+
+main()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+
+

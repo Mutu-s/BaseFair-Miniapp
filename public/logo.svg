@@ -1,0 +1,10 @@
+<svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Back yellow square (lighter) -->
+  <rect x="20" y="30" width="50" height="50" fill="#FCD34D" rx="6" opacity="0.95"/>
+  
+  <!-- Front yellow square (darker, overlapping) -->
+  <rect x="35" y="15" width="50" height="50" fill="#FBBF24" rx="6"/>
+  
+  <!-- Green arrow pointing diagonally up-right -->
+  <path d="M25 55 L55 25 M55 25 L45 25 M55 25 L55 35" stroke="#22C55E" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>

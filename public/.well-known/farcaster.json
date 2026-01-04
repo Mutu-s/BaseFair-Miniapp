@@ -1,0 +1,19 @@
+{
+  "accountAssociation": {
+    "header": "eyJmaWQiOjAsInR5cGUiOiJjdXN0b2R5Iiwia2V5IjoiMHgwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwIn0",
+    "payload": "eyJkb21haW4iOiJ5b3VyLWRvbWFpbi5jb20ifQ",
+    "signature": "placeholder_signature"
+  },
+  "frame": {
+    "version": "1",
+    "name": "BaseFair",
+    "iconUrl": "https://your-domain.com/images/base-logo.png",
+    "homeUrl": "https://your-domain.com",
+    "imageUrl": "https://your-domain.com/images/og-image.png",
+    "buttonTitle": "Play Now",
+    "splashImageUrl": "https://your-domain.com/images/splash.png",
+    "splashBackgroundColor": "#0a0a0f",
+    "webhookUrl": "https://your-domain.com/api/webhook"
+  }
+}
+

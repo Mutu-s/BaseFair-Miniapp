@@ -1,0 +1,16 @@
+# Ignore build cache - ABI is now in TypeScript file (utils/flipMatchAbi.ts)
+cache/
+node_modules/
+.next/
+.env
+.env.local
+.env.*.local
+
+# Hardhat files (artifacts not needed - ABI is in TypeScript)
+cache/
+artifacts/
+coverage/
+
+# Test files
+test/
+

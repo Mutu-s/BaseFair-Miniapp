@@ -1,0 +1,14 @@
+{
+  "mainnet": {
+    "flipmatchContract": "",
+    "mockPythVRF": "0xbB9A2e35EDEa5e02985B12D5956f42C2793c5E64",
+    "casinoTreasury": "0x52F9E3A4663df9215aF28E4EA8829DcEe8302c2c",
+    "casinoGames": {
+      "Dice": "0xA615e95bdD40aDB8Af762a24BD92B318ACbB9205",
+      "Plinko": "0x46D298A26892445f691Fe80aF683567561cf88cf",
+      "Crash": "0x139540C2Eb01Ff40C502655DcE9058C912513851",
+      "Slots": "0x91da618A1E073D063cc0e4ceB31443ebc8d94BDA",
+      "Jackpot": "0xf56bC743F00d86D178fa914E40c03F4Ba11AbA62"
+    }
+  }
+}

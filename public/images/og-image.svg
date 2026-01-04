@@ -1,0 +1,27 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="1200" height="630" fill="#0a0a0f"/>
+  <rect width="1200" height="630" fill="url(#gradient)" opacity="0.5"/>
+  
+  <!-- Base Logo -->
+  <circle cx="600" cy="250" r="80" fill="#0052FF"/>
+  <path d="M604 186C576 186 552 210 552 238C552 266 576 290 604 290C620 290 634 282 643 271V248H607V264H625C620 274 610 281 596 281C578 281 563 266 563 248C563 230 578 215 596 215C607 215 616 220 622 227L637 212C628 202 614 195 596 195L604 186Z" fill="white" transform="translate(0, 12)"/>
+  
+  <!-- Text -->
+  <text x="600" y="400" text-anchor="middle" fill="white" font-family="system-ui, -apple-system, sans-serif" font-size="64" font-weight="bold">BaseFair</text>
+  <text x="600" y="460" text-anchor="middle" fill="#888" font-family="system-ui, -apple-system, sans-serif" font-size="28">Verifiably Fair Gaming on Base</text>
+  
+  <!-- Gaming Icons -->
+  <text x="460" y="540" fill="#0052FF" font-size="40">🎲</text>
+  <text x="540" y="540" fill="#0052FF" font-size="40">🎮</text>
+  <text x="620" y="540" fill="#0052FF" font-size="40">🎰</text>
+  <text x="700" y="540" fill="#0052FF" font-size="40">🏆</text>
+  
+  <defs>
+    <linearGradient id="gradient" x1="0" y1="0" x2="1200" y2="630">
+      <stop offset="0%" stop-color="#0052FF" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#0a0a0f" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+</svg>
+
