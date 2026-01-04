@@ -69,7 +69,7 @@ async function main() {
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
     
     // Check if house balance is sufficient for minimum bet
-    const MIN_BET = hre.ethers.parseEther('0.01');
+    const MIN_BET = hre.ethers.parseEther('0.000003');
     const minRequired = (MIN_BET * BigInt(200 - HOUSE_EDGE_PCT)) / 100n - MIN_BET;
     
     if (houseBalance < minRequired) {

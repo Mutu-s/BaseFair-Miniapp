@@ -193,7 +193,7 @@ export const createGame = async (gameParams: GameParams): Promise<string> => {
     
     // Parse stake as float to handle decimals
     const stakeAmount = parseFloat(stakeStr)
-    if (isNaN(stakeAmount) || stakeAmount < 0.01) {
+    if (isNaN(stakeAmount) || stakeAmount < 0.000003) {
       throw new Error('Minimum bet must be at least 0.000003 ETH (~$0.01)')
     }
     
@@ -454,8 +454,8 @@ export const createGame = async (gameParams: GameParams): Promise<string> => {
     
     // Check for specific contract revert reasons
     if (errorMessage.includes('Bet must be at least') || errorMessage.includes('minimum bet')) {
-      // Contract says "1 ETH" but actually requires 0.01 ETH - clarify for user
-      throw new Error('Minimum bet must be at least 0.01 ETH. Please increase your stake.')
+      // Contract says "1 ETH" but actually requires 0.000003 ETH - clarify for user
+      throw new Error('Minimum bet must be at least 0.000003 ETH (~$0.01). Please increase your stake.')
     }
     if (errorMessage.includes('Players must be between') || errorMessage.includes('Invalid player count')) {
       throw new Error('Number of players must be between 1 and 5')
@@ -496,7 +496,7 @@ export const createGame = async (gameParams: GameParams): Promise<string> => {
       
       // Try to provide more specific error based on game parameters
       let specificError = 'Transaction failed. Please check:\n'
-      specificError += '1) Your stake is at least 0.01 ETH (not 1 ETH)\n'
+      specificError += '1) Your stake is at least 0.000003 ETH (~$0.01)\n'
       specificError += '2) You have enough balance (stake + gas fees)\n'
       specificError += '3) For AI games: maxPlayers must be exactly 1\n'
       specificError += '4) For AI games: House balance must be sufficient (stake * 0.95)\n'
@@ -535,10 +535,10 @@ export const joinGame = async (gameId: number, stake: number | string, password?
     const stakeWei = toWei(stakeAmount.toString())
     console.log('[joinGame] Joining game:', gameId, 'with stake:', stakeAmount, 'ETH (', stakeWei.toString(), 'wei)')
     
-    // Verify the stake is at least MIN_BET (0.01 ETH)
-    const minBet = ethers.parseEther('0.01')
+    // Verify the stake is at least MIN_BET (0.000003 ETH)
+    const minBet = ethers.parseEther('0.000003')
     if (stakeWei < minBet) {
-      throw new Error('Stake must be at least 0.01 ETH')
+      throw new Error('Stake must be at least 0.000003 ETH (~$0.01)')
     }
     
     const tx = await contract.joinGame(gameId, gamePassword, { value: stakeWei })

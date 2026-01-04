@@ -311,7 +311,7 @@ contract FlipMatch is Ownable, ReentrancyGuard {
         uint256 _durationHours,
         string memory _password
     ) external payable nonReentrant {
-        require(msg.value >= MIN_BET, "Bet must be at least 0.01 ETH");
+        require(msg.value >= MIN_BET, "Bet must be at least 0.000003 ETH");
         require(_maxPlayers >= MIN_PLAYERS && _maxPlayers <= MAX_PLAYERS, "Invalid player count");
         
         if (_gameType == GameType.AI_VS_PLAYER) {

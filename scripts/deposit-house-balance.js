@@ -97,7 +97,7 @@ async function main() {
     const amountWei = hre.ethers.parseEther(amount.toString());
     
     // Check if deployer has enough balance (including gas)
-    const gasReserve = hre.ethers.parseEther('0.01'); // Reserve 0.01 ETH for gas
+    const gasReserve = hre.ethers.parseEther('0.0001'); // Reserve 0.0001 ETH for gas (Base has low fees)
     if (deployerBalance < amountWei + gasReserve) {
       console.error(`❌ Error: Insufficient balance!`);
       console.log(`   Required: ${hre.ethers.formatEther(amountWei + gasReserve)} ETH (${amount} ETH + 0.01 ETH gas)`);
