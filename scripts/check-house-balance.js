@@ -46,7 +46,7 @@ async function main() {
     
     // Calculate minimum required balance for different stake amounts
     const HOUSE_EDGE_PCT = 5; // 5% house edge
-    const testStakes = [0.01, 0.1, 1, 10, 100];
+    const testStakes = [0.000003, 0.0001, 0.001, 0.01, 0.1];
     
     console.log('📊 Minimum House Balance Required for Different Stakes:');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
@@ -73,7 +73,7 @@ async function main() {
     const minRequired = (MIN_BET * BigInt(200 - HOUSE_EDGE_PCT)) / 100n - MIN_BET;
     
     if (houseBalance < minRequired) {
-      console.log('⚠️  WARNING: House balance is insufficient for minimum bet (0.01 ETH)');
+      console.log('⚠️  WARNING: House balance is insufficient for minimum bet (0.000003 ETH)');
       console.log(`   Required: ${hre.ethers.formatEther(minRequired)} ETH`);
       console.log(`   Current:  ${houseBalanceFormatted} ETH`);
       console.log(`   Missing:  ${hre.ethers.formatEther(minRequired - houseBalance)} ETH\n`);

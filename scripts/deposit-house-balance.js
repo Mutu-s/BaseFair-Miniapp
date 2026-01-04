@@ -100,7 +100,7 @@ async function main() {
     const gasReserve = hre.ethers.parseEther('0.0001'); // Reserve 0.0001 ETH for gas (Base has low fees)
     if (deployerBalance < amountWei + gasReserve) {
       console.error(`❌ Error: Insufficient balance!`);
-      console.log(`   Required: ${hre.ethers.formatEther(amountWei + gasReserve)} ETH (${amount} ETH + 0.01 ETH gas)`);
+      console.log(`   Required: ${hre.ethers.formatEther(amountWei + gasReserve)} ETH (${amount} ETH + 0.0001 ETH gas)`);
       console.log(`   Available: ${deployerBalanceFormatted} ETH`);
       process.exit(1);
     }

@@ -20,7 +20,7 @@ const generateGameData = (count) => {
       participants: 2,
       winners: 1,
       acceptees: faker.number.int({ min: 1, max: 2 }),
-      stake: faker.number.float({ min: 0.01, max: 0.1 }),
+      stake: faker.number.float({ min: 0.000003, max: 0.001 }),
       starts: faker.date.past().getTime(),
       ends: faker.date.future().getTime(),
       timestamp: faker.date.past().getTime(),
@@ -41,7 +41,7 @@ const generateInvitations = async (count) => {
     const game = {
       gameId: i + 1,
       account: Math.random() < 0.5 ? player1 : player2,
-      stake: faker.number.float({ min: 0.01, max: 0.1 }),
+      stake: faker.number.float({ min: 0.000003, max: 0.001 }),
       responded: faker.datatype.boolean(),
       accepted: faker.datatype.boolean(),
     }
