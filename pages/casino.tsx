@@ -3,7 +3,7 @@ import Head from 'next/head'
 import { useState, useEffect } from 'react'
 import { useAccount, useChainId } from 'wagmi'
 import { ethers } from 'ethers'
-import { BASE_TESTNET_CHAIN_ID, BASE_MAINNET_CHAIN_ID } from '@/utils/network'
+import { BASE_MAINNET_CHAIN_ID } from '@/utils/network'
 import { CasinoGameType, getGameConfig, playCoinFlip, playDice, playPlinko, playSlots, getTreasuryBalance, getGameState } from '@/services/casino'
 import { FaCoins, FaDice, FaCircle, FaDiceFive, FaTrophy, FaArrowLeft } from 'react-icons/fa'
 import Image from 'next/image'
@@ -1530,9 +1530,9 @@ const CasinoPage: NextPage = () => {
                                         e.preventDefault()
                                         e.stopPropagation()
                                         // Get current chainId to determine explorer URL
-                                        const isTestnet = chainId === BASE_TESTNET_CHAIN_ID
-                                        const explorerBase = isTestnet 
-                                          ? 'https://testnet.monadvision.com' 
+                                        const explorerBase = 'https://basescan.org'
+                                        const _unused = chainId // Prevent unused variable warning
+                                        const _explorerBase = explorerBase // Use directly 
                                           : 'https://monadvision.com'
                                         const url = `${explorerBase}/tx/${gameResult.txHash}`
                                         console.log('[Casino] Opening transaction:', { txHash: gameResult.txHash, chainId, explorerBase, url })

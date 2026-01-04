@@ -1,223 +1,216 @@
-import GameList from '@/components/GameList'
-import Hero from '@/components/Hero'
-import Leaderboard from '@/components/Leaderboard'
-import Analytics from '@/components/Analytics'
-import CreateGame from '@/components/CreateGame'
-import { getActiveGames, getMyGames } from '@/services/blockchain'
 import { globalActions } from '@/store/globalSlices'
-import { GameStruct, RootState, GameStatus, GameType } from '@/utils/type.dt'
 import { NextPage } from 'next'
 import Head from 'next/head'
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
-import { useDispatch, useSelector } from 'react-redux'
-import { GameListSkeleton } from '@/components/SkeletonLoader'
-import { useWebSocket } from '@/services/websocket'
-import { useChainId, useAccount } from 'wagmi'
+import { useDispatch } from 'react-redux'
+import CreateGame from '@/components/CreateGame'
+import { useFrame } from '@/services/frameProvider'
+import { useAccount } from 'wagmi'
+import { ConnectButton } from '@rainbow-me/rainbowkit'
 
 const Page: NextPage = () => {
   const dispatch = useDispatch()
-  const { setGames, setLoading } = globalActions
-  const { games, loading } = useSelector((states: RootState) => states.globalStates)
-  const chainId = useChainId()
-  const { address, isConnected } = useAccount()
-  const [myActiveGames, setMyActiveGames] = useState<GameStruct[]>([])
-  const [allActiveGames, setAllActiveGames] = useState<GameStruct[]>([])
+  const { isInFrame } = useFrame()
+  const { isConnected } = useAccount()
 
-  // Fetch games on mount and when network changes
-  useEffect(() => {
-    const fetchGames = async () => {
-      dispatch(setLoading(true))
-      try {
-        console.log('[index.tsx] Fetching active games for chainId:', chainId)
-        
-        // Fetch all active games
-        const allGamesData = await getActiveGames(chainId)
-        console.log('[index.tsx] Raw active games:', allGamesData.length, allGamesData.map(g => ({ id: g.id, type: g.gameType, status: g.status, players: `${g.currentPlayers}/${g.maxPlayers}` })))
-        
-        // Filter only multi-player games (exclude AI vs Player games)
-        const multiPlayerGames = allGamesData.filter(game => {
-          const isPlayerVsPlayer = game.gameType === GameType.PLAYER_VS_PLAYER
-          if (!isPlayerVsPlayer) {
-            console.log('[index.tsx] Filtered out game', game.id, '- not PLAYER_VS_PLAYER, type:', game.gameType)
-          }
-          return isPlayerVsPlayer
-        })
-        console.log('[index.tsx] Found', allGamesData.length, 'active games (', multiPlayerGames.length, 'multi-player)')
-        setAllActiveGames(multiPlayerGames)
-        
-        // If user is connected, also fetch their active games
-        if (isConnected && address) {
-          try {
-            console.log('[index.tsx] Fetching my active games for address:', address)
-            const myGamesData = await getMyGames(address, chainId)
-            // Filter only active multi-player games (CREATED or IN_PROGRESS, and PLAYER_VS_PLAYER)
-            const myActive = myGamesData.filter(
-              game => (game.status === GameStatus.CREATED || game.status === GameStatus.IN_PROGRESS || game.status === GameStatus.WAITING_VRF) &&
-                      game.gameType === GameType.PLAYER_VS_PLAYER
-            )
-            console.log('[index.tsx] Found', myActive.length, 'my active multi-player games')
-            setMyActiveGames(myActive)
-            
-            // Show user's active games first, then other active games
-            // Remove duplicates (user's games should appear in both lists)
-            const otherGames = multiPlayerGames.filter(game => 
-              !myActive.some(myGame => myGame.id === game.id)
-            )
-            const combinedGames = [...myActive, ...otherGames]
-            console.log('[index.tsx] Combined multi-player games:', combinedGames.length, '(my games:', myActive.length, '+ other games:', otherGames.length, ')')
-            dispatch(setGames(combinedGames))
-          } catch (error) {
-            console.error('[index.tsx] Error fetching my games:', error)
-            // If my games fetch fails, just show all active multi-player games
-            dispatch(setGames(multiPlayerGames))
-          }
-        } else {
-          // User not connected, show all active multi-player games
-          console.log('[index.tsx] User not connected, showing all multi-player games:', multiPlayerGames.length)
-          dispatch(setGames(multiPlayerGames))
-        }
-      } catch (error) {
-        console.error('[index.tsx] Error fetching games:', error)
-        dispatch(setGames([]))
-        setAllActiveGames([])
-        setMyActiveGames([])
-      } finally {
-        dispatch(setLoading(false))
-      }
-    }
+  const quickActions = [
+    {
+      icon: '🎮',
+      title: 'FlipMatch',
+      description: 'Memory card game',
+      href: '/flip-match',
+      gradient: 'from-[#0052FF] to-[#0066FF]',
+      shadowColor: 'shadow-[#0052FF]/30'
+    },
+    {
+      icon: '🎰',
+      title: 'Casino',
+      description: 'Dice, Slots, Plinko',
+      href: '/casino',
+      gradient: 'from-purple-500 to-pink-500',
+      shadowColor: 'shadow-purple-500/30'
+    },
+    {
+      icon: '💰',
+      title: 'Jackpot',
+      description: 'Big prizes',
+      href: '/jackpot',
+      gradient: 'from-yellow-500 to-orange-500',
+      shadowColor: 'shadow-yellow-500/30'
+    },
+    {
+      icon: '📊',
+      title: 'My Games',
+      description: 'History & stats',
+      href: '/games',
+      gradient: 'from-green-500 to-emerald-500',
+      shadowColor: 'shadow-green-500/30'
+    },
+  ]
 
-    // Only fetch if chainId is valid (8453 for Base mainnet)
-    if (chainId === 8453) {
-      fetchGames()
-    } else {
-      console.warn('[index.tsx] Invalid chainId, skipping fetch:', chainId)
-      dispatch(setGames([]))
-      dispatch(setLoading(false))
-    }
-  }, [dispatch, setGames, setLoading, chainId, isConnected, address]) // Re-fetch when chainId or connection changes
-
-  // WebSocket for real-time updates
-  useWebSocket((event) => {
-    if (event.type === 'GAME_CREATED' || event.type === 'GAME_UPDATED') {
-      // Refresh games list with current chainId
-      if (chainId === 8453) {
-        const refreshGames = async () => {
-          try {
-            const allGamesData = await getActiveGames(chainId)
-            // Filter only multi-player games
-            const multiPlayerGames = allGamesData.filter(game => game.gameType === GameType.PLAYER_VS_PLAYER)
-            setAllActiveGames(multiPlayerGames)
-            
-            if (isConnected && address) {
-              try {
-                const myGamesData = await getMyGames(address, chainId)
-                const myActive = myGamesData.filter(
-                  game => (game.status === GameStatus.CREATED || game.status === GameStatus.IN_PROGRESS) &&
-                          game.gameType === GameType.PLAYER_VS_PLAYER
-                )
-                setMyActiveGames(myActive)
-                
-                const combinedGames = [
-                  ...myActive,
-                  ...multiPlayerGames.filter(game => 
-                    !myActive.some(myGame => myGame.id === game.id)
-                  )
-                ]
-                dispatch(setGames(combinedGames))
-              } catch (error) {
-                dispatch(setGames(multiPlayerGames))
-              }
-            } else {
-              dispatch(setGames(multiPlayerGames))
-            }
-          } catch (error) {
-            console.error('[index.tsx] Error refreshing games:', error)
-          }
-        }
-        refreshGames()
-      }
-    }
-  })
+  const casinoGames = [
+    { icon: '🎲', name: 'Dice', href: '/casino?game=dice' },
+    { icon: '🪙', name: 'Coin Flip', href: '/casino?game=coinflip' },
+    { icon: '📊', name: 'Plinko', href: '/casino?game=plinko' },
+    { icon: '🎰', name: 'Slots', href: '/casino?game=slots' },
+    { icon: '📈', name: 'Crash', href: '/casino?game=crash' },
+  ]
 
   return (
-    <div>
+    <div className={`min-h-screen ${isInFrame ? 'pb-4' : 'pb-24'}`}>
       <Head>
-        <title>BaseFair - Verifiably Fair Gaming on Base</title>
-        <meta
-          name="description"
-          content="BaseFair - Verifiably fair gaming platform on Base blockchain with VRF-powered provable randomness. Mini App for Farcaster."
-        />
+        <title>BaseFair - Fair Gaming on Base</title>
+        <meta name="description" content="Verifiably fair gaming on Base blockchain" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
-      <Hero />
 
-      <div className="lg:w-2/3 w-full mx-auto px-4 py-12 space-y-12">
-        {/* Create Game and My Games Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
-          {/* Create Game Card */}
-          <div className="card group hover:scale-[1.02] transition-all duration-300">
-            <div className="flex flex-col items-center text-center">
-              <div className="mb-6">
-                <div className="p-6 bg-gradient-to-br from-primary-500/20 to-primary-600/10 rounded-xl text-primary-500 border border-primary-500/20 shadow-lg shadow-primary-500/20 group-hover:shadow-primary-500/40 transition-shadow inline-block">
-                  <span className="text-4xl">🎮</span>
-                </div>
-              </div>
-              <h3 className="text-2xl font-extrabold text-gray-100 mb-3 tracking-tight">Create Game</h3>
-              <p className="text-gray-300 text-sm mb-6 leading-relaxed">
-                Start a new game session. Choose between Single Player (vs AI) or Multi Player mode. Set your stake amount and game parameters.
-              </p>
-              <button
-                onClick={() => dispatch(globalActions.setCreateModal('scale-100'))}
-                className="btn-primary w-full font-bold"
-              >
-                Create New Game
-              </button>
+      {/* Hero Section - Compact for Mini App */}
+      <div className="relative overflow-hidden">
+        {/* Background gradient */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[#0052FF]/20 via-transparent to-purple-500/10" />
+        
+        <div className="relative px-4 pt-6 pb-8">
+          {/* Logo & Title */}
+          <div className="text-center mb-6">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-[#0052FF] to-[#0066FF] shadow-xl shadow-[#0052FF]/40 mb-3">
+              <span className="text-3xl">🎮</span>
             </div>
+            <h1 className="text-2xl font-bold text-white mb-1">BaseFair</h1>
+            <p className="text-sm text-gray-400">Verifiably Fair Gaming</p>
           </div>
 
-          {/* My Games Card */}
-          <div className="card group hover:scale-[1.02] transition-all duration-300">
-            <div className="flex flex-col items-center text-center">
-              <div className="mb-6">
-                <div className="p-6 bg-gradient-to-br from-secondary-500/20 to-secondary-600/10 rounded-xl text-secondary-500 border border-secondary-500/20 shadow-lg shadow-secondary-500/20 group-hover:shadow-secondary-500/40 transition-shadow inline-block">
-                  <span className="text-4xl">📊</span>
-                </div>
-              </div>
-              <h3 className="text-2xl font-extrabold text-gray-100 mb-3 tracking-tight">My Games</h3>
-              <p className="text-gray-300 text-sm mb-6 leading-relaxed">
-                View and manage all your games. Track active games and review completed matches. Check your game history and statistics.
-              </p>
-              <Link
-                href="/games"
-                className="btn-primary w-full font-bold text-center"
-              >
-                View My Games
-              </Link>
+          {/* Connect Wallet Button - Only show if not connected */}
+          {!isConnected && (
+            <div className="flex justify-center mb-6">
+              <ConnectButton.Custom>
+                {({ openConnectModal }) => (
+                  <button
+                    onClick={openConnectModal}
+                    className="px-8 py-3 bg-gradient-to-r from-[#0052FF] to-[#0066FF] text-white font-bold rounded-xl shadow-lg shadow-[#0052FF]/40 hover:shadow-xl hover:shadow-[#0052FF]/50 transition-all duration-300 active:scale-95"
+                  >
+                    🔗 Connect Wallet
+                  </button>
+                )}
+              </ConnectButton.Custom>
             </div>
-          </div>
-        </div>
+          )}
 
-        {/* Active Games Section - Show below My Games card, only if there are active games */}
-        {loading ? (
-          <GameListSkeleton />
-        ) : games.length > 0 ? (
-          <div className="mb-12">
-            <GameList games={games} showTitle={false} />
-          </div>
-        ) : null}
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <Leaderboard />
-          <Analytics />
+          {/* Create Game Button - Big & Prominent */}
+          {isConnected && (
+            <button
+              onClick={() => dispatch(globalActions.setCreateModal('scale-100'))}
+              className="w-full py-4 bg-gradient-to-r from-[#0052FF] to-[#0066FF] text-white font-bold text-lg rounded-2xl shadow-xl shadow-[#0052FF]/40 hover:shadow-2xl hover:shadow-[#0052FF]/50 transition-all duration-300 active:scale-[0.98] mb-6 flex items-center justify-center gap-3"
+            >
+              <span className="text-2xl">➕</span>
+              <span>Create New Game</span>
+            </button>
+          )}
         </div>
       </div>
-      
+
+      {/* Quick Actions Grid */}
+      <div className="px-4 mb-6">
+        <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Quick Play</h2>
+        <div className="grid grid-cols-2 gap-3">
+          {quickActions.map((action) => (
+            <Link
+              key={action.title}
+              href={action.href}
+              className={`relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br ${action.gradient} ${action.shadowColor} shadow-lg hover:shadow-xl transition-all duration-300 active:scale-[0.97]`}
+            >
+              <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
+              <span className="text-3xl mb-2 block">{action.icon}</span>
+              <h3 className="text-white font-bold text-base">{action.title}</h3>
+              <p className="text-white/70 text-xs">{action.description}</p>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      {/* Casino Games - Horizontal Scroll */}
+      <div className="px-4 mb-6">
+        <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Casino Games</h2>
+        <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4">
+          {casinoGames.map((game) => (
+            <Link
+              key={game.name}
+              href={game.href}
+              className="flex-shrink-0 flex flex-col items-center justify-center w-20 h-20 bg-dark-800/80 rounded-2xl border border-dark-700/50 hover:border-[#0052FF]/50 hover:bg-dark-700/80 transition-all duration-200 active:scale-95"
+            >
+              <span className="text-2xl mb-1">{game.icon}</span>
+              <span className="text-xs text-gray-300 font-medium">{game.name}</span>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      {/* Active Games Preview */}
+      <div className="px-4 mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Active Games</h2>
+          <Link href="/active-games" className="text-xs text-[#0052FF] font-medium">
+            View All →
+          </Link>
+        </div>
+        <div className="bg-dark-800/60 rounded-2xl border border-dark-700/50 p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#0052FF]/20 to-purple-500/20 flex items-center justify-center">
+                <span className="text-lg">🎮</span>
+              </div>
+              <div>
+                <p className="text-white font-medium text-sm">Join multiplayer games</p>
+                <p className="text-gray-400 text-xs">Compete with other players</p>
+              </div>
+            </div>
+            <Link
+              href="/active-games"
+              className="px-4 py-2 bg-[#0052FF]/20 text-[#0052FF] rounded-xl text-sm font-medium hover:bg-[#0052FF]/30 transition-colors"
+            >
+              Browse
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* Stats Bar */}
+      <div className="px-4 mb-6">
+        <div className="grid grid-cols-3 gap-3">
+          <div className="bg-dark-800/60 rounded-xl p-3 text-center border border-dark-700/50">
+            <p className="text-lg font-bold text-white">🔥</p>
+            <p className="text-xs text-gray-400 mt-1">Live Now</p>
+          </div>
+          <div className="bg-dark-800/60 rounded-xl p-3 text-center border border-dark-700/50">
+            <p className="text-lg font-bold text-[#0052FF]">VRF</p>
+            <p className="text-xs text-gray-400 mt-1">Provably Fair</p>
+          </div>
+          <div className="bg-dark-800/60 rounded-xl p-3 text-center border border-dark-700/50">
+            <p className="text-lg font-bold text-white">⚡</p>
+            <p className="text-xs text-gray-400 mt-1">Base Chain</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Leaderboard Link */}
+      <div className="px-4">
+        <Link
+          href="/leaderboard"
+          className="flex items-center justify-between bg-gradient-to-r from-yellow-500/10 to-orange-500/10 rounded-2xl p-4 border border-yellow-500/20 hover:border-yellow-500/40 transition-all"
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">🏆</span>
+            <div>
+              <p className="text-white font-medium">Leaderboard</p>
+              <p className="text-gray-400 text-xs">Top players this week</p>
+            </div>
+          </div>
+          <span className="text-gray-400">→</span>
+        </Link>
+      </div>
+
       <CreateGame />
     </div>
   )
 }
 
 export default Page
-
-// Removed getServerSideProps - games are now fetched client-side to support network switching

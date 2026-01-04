@@ -6,6 +6,7 @@ import { FrameProvider, useFrame } from '@/services/frameProvider'
 import type { AppProps } from 'next/app'
 import type { NextComponentType, NextPageContext } from 'next'
 import Header from '@/components/Header'
+import BottomNav from '@/components/BottomNav'
 import { Provider } from 'react-redux'
 import { store } from '@/store'
 import Chat from '@/components/Chat'
@@ -26,6 +27,8 @@ function AppContent({ Component, pageProps }: AppContentProps) {
       {/* Hide header in frame mode for cleaner mini app experience */}
       {!isInFrame && <Header />}
       <Component {...pageProps} />
+      {/* Bottom Navigation - Always show for better UX */}
+      <BottomNav />
       {/* Hide chat in frame mode */}
       {!isInFrame && <Chat />}
     </div>

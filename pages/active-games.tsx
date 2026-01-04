@@ -10,7 +10,7 @@ import { GameListSkeleton } from '@/components/SkeletonLoader'
 import { useWebSocket } from '@/services/websocket'
 import { useChainId, useAccount } from 'wagmi'
 import Link from 'next/link'
-import { BASE_MAINNET_CHAIN_ID, BASE_TESTNET_CHAIN_ID } from '@/utils/network'
+import { BASE_MAINNET_CHAIN_ID } from '@/utils/network'
 
 const ActiveGamesPage: NextPage = () => {
   const dispatch = useDispatch()
@@ -130,9 +130,7 @@ const ActiveGamesPage: NextPage = () => {
 
   // Get current network name
   const getNetworkName = () => {
-    if (chainId === BASE_TESTNET_CHAIN_ID) {
-      return 'Testnet'
-    } else if (chainId === BASE_MAINNET_CHAIN_ID) {
+    if (chainId === BASE_MAINNET_CHAIN_ID) {
       return 'Mainnet'
     }
     return 'Unknown Network'
@@ -162,7 +160,7 @@ const ActiveGamesPage: NextPage = () => {
               </div>
               <div className="px-4 py-2 rounded-xl bg-gradient-to-br from-primary-500/10 to-primary-600/5 border border-primary-500/20">
                 <div className="text-xs text-gray-400 font-medium mb-1">Network</div>
-                <div className={`text-sm font-bold ${chainId === BASE_TESTNET_CHAIN_ID ? 'text-yellow-400' : 'text-primary-400'}`}>
+                <div className={`text-sm font-bold text-[#0052FF]`}>
                   {getNetworkName()}
                 </div>
               </div>

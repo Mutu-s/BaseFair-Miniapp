@@ -6,7 +6,7 @@ import Head from 'next/head'
 import { useDispatch } from 'react-redux'
 import Link from 'next/link'
 import { useChainId, useAccount } from 'wagmi'
-import { BASE_MAINNET_CHAIN_ID, BASE_TESTNET_CHAIN_ID } from '@/utils/network'
+import { BASE_MAINNET_CHAIN_ID } from '@/utils/network'
 import { getActiveGames, getMyGames } from '@/services/blockchain'
 import { GameStruct, GameStatus, GameType } from '@/utils/type.dt'
 import { useEffect, useState } from 'react'
@@ -57,10 +57,8 @@ const FlipMatchPage: NextPage = () => {
 
   // Get current network name
   const getNetworkName = () => {
-    if (chainId === BASE_TESTNET_CHAIN_ID) {
-      return 'Testnet'
-    } else if (chainId === BASE_MAINNET_CHAIN_ID) {
-      return 'Mainnet'
+    if (chainId === BASE_MAINNET_CHAIN_ID) {
+      return 'Base'
     }
     return 'Unknown Network'
   }
@@ -68,7 +66,7 @@ const FlipMatchPage: NextPage = () => {
   // Fetch active multi-player games and stats
   useEffect(() => {
     const fetchData = async () => {
-      if (chainId !== 143 && chainId !== 10143) {
+      if (chainId !== BASE_MAINNET_CHAIN_ID) {
         setLoading(false)
         return
       }
@@ -193,7 +191,7 @@ const FlipMatchPage: NextPage = () => {
               <div className="flex flex-col gap-3">
                 <div className="px-6 py-4 rounded-xl bg-gradient-to-br from-primary-500/10 to-primary-600/5 border border-primary-500/20 shadow-lg">
                   <div className="text-xs text-gray-400 font-medium mb-1">Network</div>
-                  <div className={`text-lg font-bold ${chainId === BASE_TESTNET_CHAIN_ID ? 'text-yellow-400' : 'text-primary-400'}`}>
+                  <div className={`text-lg font-bold text-[#0052FF]`}>
                     {getNetworkName()}
                   </div>
                 </div>

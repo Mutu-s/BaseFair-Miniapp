@@ -3,6 +3,36 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Mini App Safe Area Support */
+:root {
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+  
+  /* Base Theme Colors */
+  --base-blue: #0052FF;
+  --base-blue-light: #0066FF;
+  --base-blue-dark: #0041CC;
+}
+
+/* Safe area utilities */
+.safe-area-top {
+  padding-top: var(--sat);
+}
+
+.safe-area-bottom {
+  padding-bottom: max(var(--sab), 8px);
+}
+
+.safe-area-left {
+  padding-left: var(--sal);
+}
+
+.safe-area-right {
+  padding-right: var(--sar);
+}
+
 @layer base {
   * {
     @apply border-dark-800;

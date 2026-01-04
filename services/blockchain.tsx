@@ -1,7 +1,7 @@
 import { ethers } from 'ethers'
 import { GameStruct, GameType, GameStatus, Player, GameParams } from '@/utils/type.dt'
 import { getErrorMessage } from '@/utils/errorMessages'
-import { getFlipMatchAddress, BASE_MAINNET_CHAIN_ID, BASE_TESTNET_CHAIN_ID } from '@/utils/network'
+import { getFlipMatchAddress, BASE_MAINNET_CHAIN_ID } from '@/utils/network'
 import { getNetworkConfig } from '@/utils/networkConfig'
 // Import ABI from TypeScript file - guaranteed to work with webpack
 import { FLIPMATCH_ABI } from '@/utils/flipMatchAbi'
@@ -65,12 +65,10 @@ const getEthereumContracts = async () => {
     const network = await provider.getNetwork()
     const chainId = Number(network.chainId)
     
-    console.log('[getEthereumContracts] Connected network chainId:', chainId, chainId === BASE_TESTNET_CHAIN_ID ? '(TESTNET)' : '(MAINNET)')
+    console.log('[getEthereumContracts] Connected network chainId:', chainId, '(Base Mainnet)')
     
     // Use appropriate RPC URL based on chainId (for consistency)
-    const rpcUrl = chainId === BASE_TESTNET_CHAIN_ID
-      ? (process.env.NEXT_PUBLIC_TESTNET_RPC_URL || 'https://testnet-rpc.monad.xyz')
-      : (process.env.NEXT_PUBLIC_RPC_URL || 'https://rpc3.monad.xyz')
+    const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL || 'https://mainnet.base.org'
     
     console.log('[getEthereumContracts] Using RPC URL:', rpcUrl)
     
@@ -97,16 +95,14 @@ const getEthereumContracts = async () => {
       try {
         const chainIdHex = await (window as any).ethereum.request({ method: 'eth_chainId' })
         chainId = parseInt(chainIdHex, 16)
-        console.log('[getEthereumContracts] Fallback: Detected chainId:', chainId, chainId === BASE_TESTNET_CHAIN_ID ? '(TESTNET)' : '(MAINNET)')
+        console.log('[getEthereumContracts] Fallback: Detected chainId:', chainId, '(Base Mainnet)')
       } catch (error) {
         console.warn('[getEthereumContracts] Fallback: Failed to get chainId, defaulting to mainnet:', error)
       }
     }
     
     // Use appropriate RPC URL based on chainId
-    const rpcUrl = chainId === BASE_TESTNET_CHAIN_ID
-      ? (process.env.NEXT_PUBLIC_TESTNET_RPC_URL || 'https://testnet-rpc.monad.xyz')
-      : (process.env.NEXT_PUBLIC_RPC_URL || 'https://rpc3.monad.xyz')
+    const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL || 'https://mainnet.base.org'
     
     console.log('[getEthereumContracts] Fallback: Using RPC URL:', rpcUrl)
     
@@ -134,12 +130,12 @@ const getReadOnlyContract = async (chainIdParam?: number) => {
     try {
       const chainIdHex = await (window as any).ethereum.request({ method: 'eth_chainId' })
       chainId = parseInt(chainIdHex, 16)
-      console.log('[getReadOnlyContract] Detected chainId from window.ethereum:', chainId, chainId === BASE_TESTNET_CHAIN_ID ? '(TESTNET)' : '(MAINNET)')
+      console.log('[getReadOnlyContract] Detected chainId from window.ethereum:', chainId, '(Base Mainnet)')
     } catch (error) {
       console.warn('[getReadOnlyContract] Failed to get chainId, defaulting to mainnet:', error)
     }
   } else if (chainIdParam) {
-    console.log('[getReadOnlyContract] Using provided chainId:', chainId, chainId === BASE_TESTNET_CHAIN_ID ? '(TESTNET)' : '(MAINNET)')
+    console.log('[getReadOnlyContract] Using provided chainId:', chainId, '(Base Mainnet)')
   }
 
   // Get network-specific configuration (ensures no conflicts)
@@ -187,7 +183,7 @@ export const createGame = async (gameParams: GameParams): Promise<string> => {
     // Get network info for logging
     const network = await browserProvider.getNetwork()
     const networkChainId = Number(network.chainId)
-    const isTestnet = networkChainId === BASE_TESTNET_CHAIN_ID
+    const isMainnet = networkChainId === BASE_MAINNET_CHAIN_ID
     
     // Validate and parse stake amount
     const stakeStr = String(gameParams.stake || '').trim()
@@ -212,7 +208,7 @@ export const createGame = async (gameParams: GameParams): Promise<string> => {
     
     // Check if user has enough balance (including gas fees)
     // Reserve some amount for gas (approximately 0.005 ETH for testnet, 0.01 ETH for mainnet)
-    const gasReserveAmount = isTestnet ? 0.005 : 0.01
+    const gasReserveAmount = 0.001 // Base has low gas fees
     const gasReserve = ethers.parseEther(gasReserveAmount.toString())
     if (balance < stake + gasReserve) {
       const balanceFormatted = parseFloat(fromWei(balance))
@@ -244,7 +240,7 @@ export const createGame = async (gameParams: GameParams): Promise<string> => {
     const password = gameParams.password || ''
     
     // Debug: Log all parameters before sending transaction
-    console.log(`[createGame] Creating game on ${isTestnet ? 'TESTNET' : 'MAINNET'} (chainId: ${networkChainId}) with parameters:`, {
+    console.log(`[createGame] Creating game on Base Mainnet (chainId: ${networkChainId}) with parameters:`, {
       gameName,
       gameType: gameParams.gameType,
       maxPlayers: gameParams.maxPlayers,
@@ -1301,12 +1297,12 @@ export const getPlayerGames = async (playerAddress: string, chainIdParam?: numbe
       try {
         const chainIdHex = await (window as any).ethereum.request({ method: 'eth_chainId' })
         chainId = parseInt(chainIdHex, 16)
-        console.log('[getPlayerGames] Detected chainId from window.ethereum:', chainId, chainId === BASE_TESTNET_CHAIN_ID ? '(TESTNET)' : '(MAINNET)')
+        console.log('[getPlayerGames] Detected chainId from window.ethereum:', chainId, '(Base Mainnet)')
       } catch (error) {
         console.warn('[getPlayerGames] Failed to get chainId, defaulting to mainnet:', error)
       }
     } else if (chainIdParam) {
-      console.log('[getPlayerGames] Using provided chainId:', chainId, chainId === BASE_TESTNET_CHAIN_ID ? '(TESTNET)' : '(MAINNET)')
+      console.log('[getPlayerGames] Using provided chainId:', chainId, '(Base Mainnet)')
     }
 
     // Use getReadOnlyContract which handles chainId detection
@@ -1741,12 +1737,12 @@ export const getMyGames = async (playerAddress?: string, chainIdParam?: number):
       try {
         const chainIdHex = await (window as any).ethereum.request({ method: 'eth_chainId' })
         chainId = parseInt(chainIdHex, 16)
-        console.log('[getMyGames] Detected chainId from window.ethereum:', chainId, chainId === BASE_TESTNET_CHAIN_ID ? '(TESTNET)' : '(MAINNET)')
+        console.log('[getMyGames] Detected chainId from window.ethereum:', chainId, '(Base Mainnet)')
       } catch (error) {
         console.warn('[getMyGames] Failed to get chainId, defaulting to mainnet:', error)
       }
     } else if (chainIdParam) {
-      console.log('[getMyGames] Using provided chainId:', chainId, chainId === BASE_TESTNET_CHAIN_ID ? '(TESTNET)' : '(MAINNET)')
+      console.log('[getMyGames] Using provided chainId:', chainId, '(Base Mainnet)')
     }
     
     if (!playerAddress && typeof window !== 'undefined') {

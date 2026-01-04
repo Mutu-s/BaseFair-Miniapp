@@ -7,7 +7,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import LoadingButton from './LoadingButton'
 import { getErrorMessage } from '@/utils/errorMessages'
 import { useChainId } from 'wagmi'
-import { BASE_MAINNET_CHAIN_ID, BASE_TESTNET_CHAIN_ID } from '@/utils/network'
+import { BASE_MAINNET_CHAIN_ID } from '@/utils/network'
 
 const CreateGame: React.FC = () => {
   const { createModal } = useSelector((states: RootState) => states.globalStates)
@@ -193,11 +193,11 @@ const CreateGame: React.FC = () => {
         try {
           // Use chainId from hook (already network-aware)
           const currentChainId = chainId || BASE_MAINNET_CHAIN_ID
-          console.log('[CreateGame] Using chainId from hook:', currentChainId, currentChainId === BASE_TESTNET_CHAIN_ID ? '(TESTNET)' : '(MAINNET)')
+          console.log('[CreateGame] Using chainId from hook:', currentChainId, '(Base Mainnet)')
           
           // Validate chainId
           let validChainId = currentChainId
-          if (currentChainId !== BASE_MAINNET_CHAIN_ID && currentChainId !== BASE_TESTNET_CHAIN_ID) {
+          if (currentChainId !== BASE_MAINNET_CHAIN_ID) {
             console.warn('[CreateGame] Invalid chainId, defaulting to mainnet:', currentChainId)
             validChainId = BASE_MAINNET_CHAIN_ID
           }
