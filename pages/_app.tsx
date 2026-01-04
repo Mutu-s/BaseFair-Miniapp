@@ -4,14 +4,21 @@ import { useEffect, useState } from 'react'
 import { Providers } from '@/services/provider'
 import { FrameProvider, useFrame } from '@/services/frameProvider'
 import type { AppProps } from 'next/app'
+import type { NextComponentType, NextPageContext } from 'next'
 import Header from '@/components/Header'
 import { Provider } from 'react-redux'
 import { store } from '@/store'
 import Chat from '@/components/Chat'
 import '@/utils/clearAllGames' // Import to make clearAllGames available in console
 
+// Custom type for AppContent props (without router)
+interface AppContentProps {
+  Component: NextComponentType<NextPageContext, any, any>
+  pageProps: any
+}
+
 // Inner app component that can use frame context
-function AppContent({ Component, pageProps }: AppProps) {
+function AppContent({ Component, pageProps }: AppContentProps) {
   const { isInFrame } = useFrame()
   
   return (

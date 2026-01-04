@@ -46,7 +46,8 @@ const base = {
   testnet: false,
 } as const
 
-const projectId = (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_PROJECT_ID) || ''
+// WalletConnect Project ID - get one at https://cloud.walletconnect.com
+const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || process.env.NEXT_PUBLIC_PROJECT_ID || 'demo-project-id'
 
 const { chains, publicClient } = configureChains(
   [base], // Only Base Mainnet
