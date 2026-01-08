@@ -1403,7 +1403,7 @@ const Page: NextPage = () => {
               // 2. Game is CREATED but VRF is fulfilled (game started but status not updated yet)
               // 3. Game is COMPLETED but player hasn't played yet (catch up scenario)
               // For AI vs Player games, be more lenient - allow if game started even if VRF pending
-              const isCreator = address && address.toLowerCase() === gameData.creator.toLowerCase()
+              const isCreator = address && gameData && address.toLowerCase() === gameData.creator.toLowerCase()
               const isAIGameSingle = isAIGame && gameData?.maxPlayers === 1
               
               // For single AI games, allow playing in any status (CREATED, IN_PROGRESS, or COMPLETED if not played)
