@@ -388,7 +388,8 @@ const Page: NextPage = () => {
     }
 
     // Only run if chainId is valid
-    if (chainId === 143 || chainId === 10143) {
+    const validChainId = chainId || BASE_MAINNET_CHAIN_ID
+    if (validChainId === BASE_MAINNET_CHAIN_ID) {
       refreshPlayerData()
     }
   }, [gameData?.gameType, gameData?.maxPlayers, gameData?.id, gameData?.creator, address, player, isSubmitting, chainId])

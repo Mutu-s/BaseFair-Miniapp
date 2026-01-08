@@ -12,6 +12,7 @@ import { GameListSkeleton } from '@/components/SkeletonLoader'
 import Link from 'next/link'
 import { createSlug } from '@/utils/helper'
 import { useChainId } from 'wagmi'
+import { BASE_MAINNET_CHAIN_ID } from '@/utils/network'
 
 const Page: NextPage = () => {
   const dispatch = useDispatch()
@@ -24,11 +25,13 @@ const Page: NextPage = () => {
   const fetchGames = useCallback(async () => {
     dispatch(setLoading(true))
     try {
-      const networkName = chainId === 10143 ? 'TESTNET' : chainId === 143 ? 'MAINNET' : 'UNKNOWN'
-      console.log(`[games.tsx] 🔍 Fetching my games for ${networkName} (chainId: ${chainId})`)
+      // Use BASE_MAINNET_CHAIN_ID (8453) instead of hardcoded values
+      const validChainId = chainId || BASE_MAINNET_CHAIN_ID
+      const networkName = validChainId === BASE_MAINNET_CHAIN_ID ? 'MAINNET' : 'UNKNOWN'
+      console.log(`[games.tsx] 🔍 Fetching my games for ${networkName} (chainId: ${validChainId})`)
       
       // Pass chainId to getMyGames to ensure correct network
-      const gamesData: GameStruct[] = await getMyGames(undefined, chainId)
+      const gamesData: GameStruct[] = await getMyGames(undefined, validChainId)
       console.log(`[games.tsx] ✅ Found ${gamesData.length} games on ${networkName}`)
       
       if (gamesData.length === 0) {
@@ -39,13 +42,11 @@ const Page: NextPage = () => {
         console.warn('  4. Games were created but not indexed yet')
         console.warn('  5. Event query range might be too small')
         
-        // For testnet, provide additional debugging info
-        if (chainId === 10143) {
-          console.warn('[games.tsx] 💡 Testnet debugging:')
-          console.warn('  - Check if games were created on testnet contract')
-          console.warn('  - Verify wallet is connected to testnet')
-          console.warn('  - Check browser console for detailed logs from getMyGames')
-        }
+        // Provide debugging info
+        console.warn('[games.tsx] 💡 Debugging tips:')
+        console.warn('  - Check if games were created on the correct network')
+        console.warn('  - Verify wallet is connected to Base Mainnet (chainId: 8453)')
+        console.warn('  - Check browser console for detailed logs from getMyGames')
       } else {
         console.log(`[games.tsx] 📊 Games breakdown:`)
         const active = gamesData.filter(g => g.status === GameStatus.CREATED || g.status === GameStatus.IN_PROGRESS)
@@ -80,11 +81,12 @@ const Page: NextPage = () => {
   }, [chainId, dispatch, setGames, setLoading])
 
   useEffect(() => {
-    // Only fetch if chainId is valid (143 for mainnet, 10143 for testnet)
-    if (chainId === 143 || chainId === 10143) {
+    // Fetch games for Base Mainnet (chainId: 8453)
+    const validChainId = chainId || BASE_MAINNET_CHAIN_ID
+    if (validChainId === BASE_MAINNET_CHAIN_ID) {
       fetchGames()
     } else {
-      console.warn('[games.tsx] Invalid chainId, skipping fetch:', chainId)
+      console.warn('[games.tsx] Invalid chainId, skipping fetch:', chainId, '(Expected:', BASE_MAINNET_CHAIN_ID, ')')
       dispatch(setGames([]))
       dispatch(setLoading(false))
     }
@@ -92,22 +94,35 @@ const Page: NextPage = () => {
 
   // Listen for game creation events and refresh
   useEffect(() => {
-    const handleGameCreated = () => {
-      console.log('[games.tsx] Game created event detected, refreshing...')
-      if (chainId === 143 || chainId === 10143) {
-        fetchGames()
+    const handleGameCreated = (event?: CustomEvent) => {
+      console.log('[games.tsx] Game created event detected, refreshing...', event?.detail)
+      const validChainId = chainId || BASE_MAINNET_CHAIN_ID
+      if (validChainId === BASE_MAINNET_CHAIN_ID) {
+        // Wait a bit for the transaction to be indexed, then refresh
+        setTimeout(() => {
+          fetchGames()
+        }, 3000)
       }
     }
 
     // Listen for custom event from CreateGame component
-    window.addEventListener('gameCreated', handleGameCreated)
+    window.addEventListener('gameCreated', handleGameCreated as EventListener)
     
     // Also listen for storage events (in case of cross-tab communication)
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'gameCreated' && e.newValue) {
-        console.log('[games.tsx] Storage event detected, refreshing...')
-        if (chainId === 143 || chainId === 10143) {
-          fetchGames()
+        try {
+          const gameData = JSON.parse(e.newValue)
+          console.log('[games.tsx] Storage event detected, refreshing...', gameData)
+          const validChainId = chainId || BASE_MAINNET_CHAIN_ID
+          if (validChainId === BASE_MAINNET_CHAIN_ID) {
+            // Wait a bit for the transaction to be indexed, then refresh
+            setTimeout(() => {
+              fetchGames()
+            }, 3000)
+          }
+        } catch (e) {
+          console.warn('[games.tsx] Error parsing storage event:', e)
         }
         // Clear the storage event
         localStorage.removeItem('gameCreated')
@@ -116,7 +131,7 @@ const Page: NextPage = () => {
     window.addEventListener('storage', handleStorageChange)
 
     return () => {
-      window.removeEventListener('gameCreated', handleGameCreated)
+      window.removeEventListener('gameCreated', handleGameCreated as EventListener)
       window.removeEventListener('storage', handleStorageChange)
     }
   }, [fetchGames, chainId, dispatch, setGames, setLoading])

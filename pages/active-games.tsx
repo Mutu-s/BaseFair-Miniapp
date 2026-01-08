@@ -75,11 +75,12 @@ const ActiveGamesPage: NextPage = () => {
       }
     }
 
-    // Only fetch if chainId is valid (143 for mainnet, 10143 for testnet)
-    if (chainId === 143 || chainId === 10143) {
+    // Only fetch if chainId is valid (8453 for Base Mainnet)
+    const validChainId = chainId || BASE_MAINNET_CHAIN_ID
+    if (validChainId === BASE_MAINNET_CHAIN_ID) {
       fetchGames()
     } else {
-      console.warn('[active-games.tsx] Invalid chainId, skipping fetch:', chainId)
+      console.warn('[active-games.tsx] Invalid chainId, skipping fetch:', chainId, '(Expected:', BASE_MAINNET_CHAIN_ID, ')')
       dispatch(setGames([]))
       dispatch(setLoading(false))
     }
@@ -89,7 +90,8 @@ const ActiveGamesPage: NextPage = () => {
   useWebSocket((event) => {
     if (event.type === 'GAME_CREATED' || event.type === 'GAME_UPDATED') {
       // Refresh games list with current chainId
-      if (chainId === 143 || chainId === 10143) {
+      const validChainId = chainId || BASE_MAINNET_CHAIN_ID
+      if (validChainId === BASE_MAINNET_CHAIN_ID) {
         const refreshGames = async () => {
           try {
             const allGamesData = await getActiveGames(chainId)

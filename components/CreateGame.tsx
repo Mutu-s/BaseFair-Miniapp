@@ -187,67 +187,120 @@ const CreateGame: React.FC = () => {
       
       closeModal()
       
-      // Wait a bit for the transaction to be indexed, then refresh
-      console.log('[CreateGame] Waiting for transaction to be indexed...')
-      setTimeout(async () => {
+      // Use chainId from hook (already network-aware)
+      const currentChainId = chainId || BASE_MAINNET_CHAIN_ID
+      console.log('[CreateGame] Using chainId from hook:', currentChainId, '(Base Mainnet)')
+      
+      // Validate chainId
+      let validChainId = currentChainId
+      if (currentChainId !== BASE_MAINNET_CHAIN_ID) {
+        console.warn('[CreateGame] Invalid chainId, defaulting to mainnet:', currentChainId)
+        validChainId = BASE_MAINNET_CHAIN_ID
+      }
+      
+      // Get player address for localStorage
+      let playerAddress = ''
+      try {
+        const ethereum = typeof window !== 'undefined' ? (window as any).ethereum : null
+        const accounts = await ethereum?.request?.({ method: 'eth_accounts' })
+        if (accounts?.length > 0) {
+          playerAddress = accounts[0]
+        }
+      } catch (e) {
+        console.warn('[CreateGame] Could not get player address:', e)
+      }
+      
+      // Dispatch custom event to notify pages immediately
+      const gameCreatedEvent = new CustomEvent('gameCreated', { detail: { chainId: validChainId, gameId } })
+      window.dispatchEvent(gameCreatedEvent)
+      
+      // Also set storage event for cross-tab communication
+      localStorage.setItem('gameCreated', JSON.stringify({ chainId: validChainId, gameId, timestamp: Date.now() }))
+      
+      // If we have gameId, try to save to localStorage first, then redirect
+      if (gameId && playerAddress) {
+        console.log('[CreateGame] Saving game to localStorage before redirect...')
         try {
-          // Use chainId from hook (already network-aware)
-          const currentChainId = chainId || BASE_MAINNET_CHAIN_ID
-          console.log('[CreateGame] Using chainId from hook:', currentChainId, '(Base Mainnet)')
+          // Try to fetch and save game immediately (with timeout)
+          const { getGame } = await import('@/services/blockchain')
+          const { saveGameToStorage } = await import('@/utils/gameStorage')
           
-          // Validate chainId
-          let validChainId = currentChainId
-          if (currentChainId !== BASE_MAINNET_CHAIN_ID) {
-            console.warn('[CreateGame] Invalid chainId, defaulting to mainnet:', currentChainId)
-            validChainId = BASE_MAINNET_CHAIN_ID
-          }
+          // Wait a bit for transaction to be indexed
+          await new Promise(resolve => setTimeout(resolve, 2000))
           
-          // Get player address for localStorage
-          let playerAddress = ''
           try {
-            const ethereum = typeof window !== 'undefined' ? (window as any).ethereum : null
-            const accounts = await ethereum?.request?.({ method: 'eth_accounts' })
-            if (accounts?.length > 0) {
-              playerAddress = accounts[0]
+            const game = await getGame(gameId, validChainId)
+            if (game) {
+              saveGameToStorage(game, validChainId, playerAddress)
+              console.log('[CreateGame] ✅ Saved game to localStorage:', gameId)
             }
           } catch (e) {
-            console.warn('[CreateGame] Could not get player address:', e)
+            console.warn('[CreateGame] Could not fetch game, will save later:', e)
+            // Create a minimal game object for localStorage
+            const minimalGame = {
+              id: gameId,
+              name: game.name || `Game #${gameId}`,
+              creator: playerAddress,
+              gameType: game.gameType,
+              status: 0, // CREATED
+              stake: parseFloat(game.stake.toString()) || 0,
+              totalPrize: 0,
+              maxPlayers: game.maxPlayers,
+              currentPlayers: 1,
+              createdAt: Date.now(),
+              startedAt: 0,
+              completedAt: 0,
+              endTime: 0,
+              winner: '0x0000000000000000000000000000000000000000',
+              winnerFlipCount: 0,
+              vrfRequestId: '0x',
+              cardOrder: [],
+              vrfFulfilled: false,
+              players: [playerAddress],
+            }
+            saveGameToStorage(minimalGame as any, validChainId, playerAddress)
+            console.log('[CreateGame] ✅ Saved minimal game to localStorage:', gameId)
           }
-          
-          // If we have gameId, try to fetch the game and save to localStorage
-          if (gameId && playerAddress) {
+        } catch (e) {
+          console.warn('[CreateGame] Error saving to localStorage:', e)
+        }
+        
+        // Redirect after saving
+        console.log('[CreateGame] Redirecting to game page:', `/gameplay/${gameId}`)
+        window.location.href = `/gameplay/${gameId}`
+        return // Don't continue with refresh logic
+      } else if (gameId) {
+        // gameId var ama playerAddress yok, yine de yönlendir
+        console.log('[CreateGame] Redirecting to game page (no player address):', `/gameplay/${gameId}`)
+        window.location.href = `/gameplay/${gameId}`
+        return
+      }
+      
+      // If no gameId, wait a bit for the transaction to be indexed, then refresh
+      console.log('[CreateGame] No gameId yet, waiting for transaction to be indexed...')
+      setTimeout(async () => {
+        try {
+          // Try to get gameId from getActiveGames (fallback)
+          if (!gameId) {
             try {
-              const { getGame } = await import('@/services/blockchain')
-              const { saveGameToStorage } = await import('@/utils/gameStorage')
-              const game = await getGame(gameId, validChainId)
-              if (game) {
-                saveGameToStorage(game, validChainId, playerAddress)
-                console.log('[CreateGame] ✅ Saved game to localStorage:', gameId)
+              const activeGames = await getActiveGames(validChainId)
+              if (activeGames && activeGames.length > 0) {
+                // Get the highest game ID (likely the one we just created)
+                const gameIds = activeGames.map(g => g.id).filter((id: number) => id > 0)
+                if (gameIds.length > 0) {
+                  const latestGameId = Math.max(...gameIds)
+                  console.log('[CreateGame] Found latest game ID:', latestGameId)
+                  // Redirect to the latest game
+                  window.location.href = `/gameplay/${latestGameId}`
+                  return
+                }
               }
             } catch (e) {
-              console.warn('[CreateGame] Could not fetch and save game to localStorage:', e)
+              console.warn('[CreateGame] Could not get latest game ID:', e)
             }
           }
           
-          // Dispatch custom event to notify pages
-          const gameCreatedEvent = new CustomEvent('gameCreated', { detail: { chainId: validChainId, gameId } })
-          window.dispatchEvent(gameCreatedEvent)
-          
-          // Also set storage event for cross-tab communication
-          localStorage.setItem('gameCreated', JSON.stringify({ chainId: validChainId, gameId, timestamp: Date.now() }))
-          
-          // If we have gameId, redirect to game page
-          if (gameId) {
-            try {
-              console.log('[CreateGame] Redirecting to game page:', `/gameplay/${gameId}`)
-              window.location.href = `/gameplay/${gameId}`
-              return // Don't refresh games list, we're redirecting
-            } catch (e) {
-              console.warn('[CreateGame] Could not redirect to game page:', e)
-            }
-          }
-          
-          // Refresh games list based on current page (only if not redirecting)
+          // Refresh games list based on current page
           if (window.location.pathname === '/games') {
             // On My Games page, refresh my games
             console.log('[CreateGame] Refreshing my games for chainId:', validChainId)
@@ -264,13 +317,13 @@ const CreateGame: React.FC = () => {
         } catch (error) {
           console.error('[CreateGame] Error refreshing games list:', error)
           // Still dispatch event even on error
-          const gameCreatedEvent = new CustomEvent('gameCreated', { detail: { chainId: chainId || BASE_MAINNET_CHAIN_ID } })
+          const gameCreatedEvent = new CustomEvent('gameCreated', { detail: { chainId: validChainId } })
           window.dispatchEvent(gameCreatedEvent)
           // Fallback to page reload
           console.log('[CreateGame] Falling back to page reload')
           window.location.reload()
         }
-      }, 5000) // Wait 5 seconds for transaction to be indexed
+      }, 3000) // Wait 3 seconds for transaction to be indexed (reduced from 5)
     } catch (error: any) {
       const errorMsg = getErrorMessage(error)
       console.error('[CreateGame] Error creating game:', errorMsg)

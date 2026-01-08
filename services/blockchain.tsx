@@ -1513,11 +1513,24 @@ const structuredGame = async (game: any, contractInstance?: ethers.Contract): Pr
           setTimeout(() => resolve([]), 5000) // 5 second timeout
         })
         players = await Promise.race([playersPromise, timeoutPromise])
+        
+        // Ensure creator is in players list (for single player AI games, creator might not be in list yet)
+        const creator = game.creator ? String(game.creator).toLowerCase() : ''
+        if (creator && !players.some(p => String(p).toLowerCase() === creator)) {
+          // Add creator to players list if not already there
+          players = [game.creator, ...players]
+          console.log('[structuredGame] Added creator to players list for game', gameId)
+        }
       }
     } catch (error) {
       console.warn('Could not fetch game players:', error)
-      // Return empty array on error
-      players = []
+      // Return empty array on error, but ensure creator is included
+      const creator = game.creator ? String(game.creator) : ''
+      if (creator) {
+        players = [creator]
+      } else {
+        players = []
+      }
     }
 
     // Calculate winner prize based on game type
@@ -1905,38 +1918,47 @@ export const getMyGames = async (playerAddress?: string, chainIdParam?: number):
     const playerAddressLower = playerAddress.toLowerCase()
     console.log('[getMyGames] 🔍 Fetching games for address:', playerAddress, 'on chainId:', chainId)
     
-    // NEW APPROACH: First try localStorage (client-side cache)
-    // This works even if blockchain queries fail
+    // NEW APPROACH: Always fetch from blockchain first, then merge with localStorage cache
+    // This ensures we get the latest games including newly created ones
     try {
       const { getGamesFromStorage, saveGamesToStorage } = await import('@/utils/gameStorage')
+      
+      // Fetch from blockchain first (this is the source of truth)
+      console.log('[getMyGames] 🔍 Fetching games from blockchain...')
+      const blockchainGames = await fetchGamesFromBlockchain(playerAddress, chainId, playerAddressLower)
+      
+      // Get cached games from localStorage
       const cachedGames = getGamesFromStorage(chainId, playerAddress)
       
-      if (cachedGames.length > 0) {
-        console.log('[getMyGames] 📦 Found', cachedGames.length, 'games in localStorage cache')
-        
-        // Return cached games immediately (non-blocking)
-        // Then try to update from blockchain in background
-        setTimeout(async () => {
-          try {
-            console.log('[getMyGames] 🔄 Updating cache from blockchain...')
-            const blockchainGames = await fetchGamesFromBlockchain(playerAddress!, chainId, playerAddressLower)
-            if (blockchainGames.length > 0) {
-              saveGamesToStorage(blockchainGames, chainId, playerAddress!)
-              console.log('[getMyGames] ✅ Updated cache with', blockchainGames.length, 'games from blockchain')
-            }
-          } catch (e) {
-            console.warn('[getMyGames] Failed to update cache from blockchain:', e)
-          }
-        }, 100)
-        
-        return cachedGames
+      // Merge blockchain games with cached games (blockchain takes priority)
+      const gameMap = new Map<number, GameStruct>()
+      
+      // Add cached games first
+      cachedGames.forEach(game => {
+        gameMap.set(game.id, game)
+      })
+      
+      // Overwrite with blockchain games (more up-to-date)
+      blockchainGames.forEach(game => {
+        gameMap.set(game.id, game)
+      })
+      
+      const mergedGames = Array.from(gameMap.values())
+      mergedGames.sort((a, b) => b.id - a.id) // Sort by ID descending (newest first)
+      
+      // Save merged games back to localStorage
+      if (mergedGames.length > 0) {
+        saveGamesToStorage(mergedGames, chainId, playerAddress)
+        console.log('[getMyGames] ✅ Saved', mergedGames.length, 'merged games to localStorage')
       }
+      
+      console.log('[getMyGames] 📊 Returning', mergedGames.length, 'games (', blockchainGames.length, 'from blockchain,', cachedGames.length, 'from cache)')
+      return mergedGames
     } catch (e) {
-      console.warn('[getMyGames] localStorage not available:', e)
+      console.warn('[getMyGames] Error with localStorage, fetching from blockchain only:', e)
+      // Fallback: fetch from blockchain only
+      return await fetchGamesFromBlockchain(playerAddress, chainId, playerAddressLower)
     }
-    
-    // If no cache, fetch from blockchain
-    return await fetchGamesFromBlockchain(playerAddress, chainId, playerAddressLower)
   } catch (error: any) {
     const errorMsg = error?.message || error?.toString() || ''
     console.error('[getMyGames] Fatal error:', errorMsg)
@@ -1970,9 +1992,39 @@ const fetchGamesFromBlockchain = async (
   try {
     const contract = await getReadOnlyContract(chainId)
     
-    // ULTIMATE METHOD: Direct iteration through all games
+    // METHOD 1: Try getPlayerGames first (fastest if available)
+    try {
+      console.log('[getMyGames] 🚀 Trying getPlayerGames method first...')
+      const playerGameIds = await getPlayerGames(playerAddress, chainId)
+      if (playerGameIds && playerGameIds.length > 0) {
+        console.log('[getMyGames] ✅ Found', playerGameIds.length, 'game IDs from getPlayerGames')
+        
+        // Fetch all games in parallel
+        const gamePromises = playerGameIds.map(async (gameId) => {
+          try {
+            const game = await contract.getGame(gameId)
+            if (game && game.id && Number(game.id) > 0) {
+              return await structuredGame(game, contract)
+            }
+            return null
+          } catch (error) {
+            console.warn(`[getMyGames] Error fetching game ${gameId}:`, error)
+            return null
+          }
+        })
+        
+        const games = await Promise.all(gamePromises)
+        const validGames = games.filter((game): game is GameStruct => game !== null)
+        console.log('[getMyGames] ✅ Returning', validGames.length, 'games from getPlayerGames method')
+        return validGames
+      }
+    } catch (error) {
+      console.warn('[getMyGames] getPlayerGames method failed, falling back to iteration:', error)
+    }
+    
+    // METHOD 2: Direct iteration through all games (fallback)
     // This method directly queries the contract's games mapping
-    console.log('[getMyGames] 🚀 Using ULTIMATE method: Direct iteration through games mapping')
+    console.log('[getMyGames] 🚀 Using iteration method: Direct iteration through games mapping')
     const playerGames: GameStruct[] = []
     
     // First, try to get game count to limit iterations
@@ -2013,11 +2065,20 @@ const fetchGamesFromBlockchain = async (
                   const structured = await structuredGame(game, contract)
                   
                   // Check if player is creator or participant
-                  const isCreator = structured.creator && structured.creator.toLowerCase() === playerAddressLower
-                  const isPlayer = structured.players && Array.isArray(structured.players) && 
-                    structured.players.some((p: string) => p && p.toLowerCase() === playerAddressLower)
+                  const creatorAddress = structured.creator ? String(structured.creator).toLowerCase() : ''
+                  const isCreator = creatorAddress === playerAddressLower
+                  
+                  // Check if player is in players array
+                  let isPlayer = false
+                  if (structured.players && Array.isArray(structured.players)) {
+                    isPlayer = structured.players.some((p: string) => {
+                      if (!p) return false
+                      return String(p).toLowerCase() === playerAddressLower
+                    })
+                  }
                   
                   if (isCreator || isPlayer) {
+                    console.log(`[getMyGames] ✅ Found game ${structured.id}: creator=${isCreator}, player=${isPlayer}`)
                     return structured
                   }
                 }
@@ -2112,10 +2173,22 @@ const fetchGamesFromBlockchain = async (
             const game = await contract.getGame(id)
             if (game && game.id && Number(game.id) > 0) {
               const structured = await structuredGame(game, contract)
-              const isCreator = structured.creator && structured.creator.toLowerCase() === playerAddressLower
-              const isPlayer = structured.players && Array.isArray(structured.players) && 
-                structured.players.some((p: string) => p && p.toLowerCase() === playerAddressLower)
-              return (isCreator || isPlayer) ? structured : null
+              const creatorAddress = structured.creator ? String(structured.creator).toLowerCase() : ''
+              const isCreator = creatorAddress === playerAddressLower
+              
+              let isPlayer = false
+              if (structured.players && Array.isArray(structured.players)) {
+                isPlayer = structured.players.some((p: string) => {
+                  if (!p) return false
+                  return String(p).toLowerCase() === playerAddressLower
+                })
+              }
+              
+              if (isCreator || isPlayer) {
+                console.log(`[getMyGames] ✅ Found game ${structured.id} from events: creator=${isCreator}, player=${isPlayer}`)
+                return structured
+              }
+              return null
             }
             return null
           } catch {
