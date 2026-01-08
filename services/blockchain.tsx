@@ -1174,6 +1174,26 @@ export const getGame = async (gameId: number, chainIdParam?: number): Promise<Ga
     const contract = await getReadOnlyContract(chainId)
     console.log('[getGame] Contract address:', contract.target)
     
+    // First, try to check if game exists by checking game counter (if available)
+    let maxGameId: number | null = null
+    try {
+      const gameCount = await contract.getGameCount().catch(() => null)
+      if (gameCount !== null) {
+        maxGameId = Number(gameCount)
+        console.log(`[getGame] Contract has ${maxGameId} games`)
+        if (gameId > maxGameId) {
+          throw new Error(`Game ${gameId} does not exist. The contract only has ${maxGameId} game(s). Maximum game ID is ${maxGameId}.`)
+        }
+      }
+    } catch (error: any) {
+      // If error is already our custom message, re-throw it
+      if (error?.message?.includes('does not exist')) {
+        throw error
+      }
+      // getGameCount may not exist in all contract versions, ignore
+      console.log('[getGame] Could not check game count, proceeding with getGame call')
+    }
+    
     // Add timeout to prevent hanging (reduced to 8 seconds for faster failure)
     let game: any
     try {
@@ -1187,12 +1207,17 @@ export const getGame = async (gameId: number, chainIdParam?: number): Promise<Ga
       const callErrorMsg = callError?.message || callError?.toString() || ''
       console.error('[getGame] Contract call error:', callErrorMsg)
       
-      // Handle ABI decoding errors
+      // Handle ABI decoding errors - these usually mean game doesn't exist
       if (callErrorMsg.includes('deferred error') || 
           callErrorMsg.includes('ABI decoding') ||
           callErrorMsg.includes('index 0') ||
-          callErrorMsg.includes('execution reverted')) {
-        throw new Error(`Game ${gameId} may not exist or contract structure mismatch. Please verify the game ID.`)
+          callErrorMsg.includes('execution reverted') ||
+          callErrorMsg.includes('revert')) {
+        // Provide helpful error message
+        if (maxGameId !== null) {
+          throw new Error(`Game ${gameId} does not exist. The contract only has ${maxGameId} game(s). Maximum game ID is ${maxGameId}.`)
+        }
+        throw new Error(`Game ${gameId} does not exist. Please verify the game ID is correct.`)
       }
       throw callError
     }
