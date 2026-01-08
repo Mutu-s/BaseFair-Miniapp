@@ -1175,24 +1175,44 @@ export const getGame = async (gameId: number, chainIdParam?: number): Promise<Ga
     console.log('[getGame] Contract address:', contract.target)
     
     // Add timeout to prevent hanging (reduced to 8 seconds for faster failure)
-    const gamePromise = contract.getGame(gameId)
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('getGame timeout after 8 seconds')), 8000)
-    })
-    
-    const game = await Promise.race([gamePromise, timeoutPromise]) as any
+    let game: any
+    try {
+      const gamePromise = contract.getGame(gameId)
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('getGame timeout after 8 seconds')), 8000)
+      })
+      
+      game = await Promise.race([gamePromise, timeoutPromise]) as any
+    } catch (callError: any) {
+      const callErrorMsg = callError?.message || callError?.toString() || ''
+      console.error('[getGame] Contract call error:', callErrorMsg)
+      
+      // Handle ABI decoding errors
+      if (callErrorMsg.includes('deferred error') || 
+          callErrorMsg.includes('ABI decoding') ||
+          callErrorMsg.includes('index 0') ||
+          callErrorMsg.includes('execution reverted')) {
+        throw new Error(`Game ${gameId} may not exist or contract structure mismatch. Please verify the game ID.`)
+      }
+      throw callError
+    }
     
     // Validate game data immediately
     if (!game || !game.id || Number(game.id) === 0) {
       throw new Error(`Game ${gameId} not found`)
     }
     
-    console.log('[getGame] Raw game data received:', {
-      id: game.id,
-      creator: game.creator,
-      status: game.status,
-      gameType: game.gameType,
-    })
+    // Safely log game data
+    try {
+      console.log('[getGame] Raw game data received:', {
+        id: game.id,
+        creator: game.creator || 'N/A',
+        status: game.status || 'N/A',
+        gameType: game.gameType || 'N/A',
+      })
+    } catch (logError) {
+      console.warn('[getGame] Error logging game data:', logError)
+    }
     
     const structured = await structuredGame(game, contract)
     console.log('[getGame] Structured game:', {
@@ -1211,6 +1231,14 @@ export const getGame = async (gameId: number, chainIdParam?: number): Promise<Ga
     // If it's a timeout or network error, provide more helpful message
     if (errorMsg.includes('timeout') || errorMsg.includes('network') || errorMsg.includes('fetch') || errorMsg.includes('ECONNREFUSED')) {
       throw new Error(`Failed to load game ${gameId}. Please check your network connection and try again.`)
+    }
+    
+    // If it's an ABI decoding error, provide specific message
+    if (errorMsg.includes('deferred error') || 
+        errorMsg.includes('ABI decoding') ||
+        errorMsg.includes('index 0') ||
+        errorMsg.includes('structure mismatch')) {
+      throw new Error(`Game ${gameId} may not exist or there's a contract compatibility issue. Please verify the game ID.`)
     }
     
     // Re-throw with original error message
@@ -1519,18 +1547,31 @@ const structuredGame = async (game: any, contractInstance?: ethers.Contract): Pr
       const gameId = Number(game.id || 0)
       if (gameId > 0) {
         // Add timeout to prevent hanging
-        const playersPromise = contract.getGamePlayers(gameId)
-        const timeoutPromise = new Promise<string[]>((resolve) => {
-          setTimeout(() => resolve([]), 5000) // 5 second timeout
-        })
-        players = await Promise.race([playersPromise, timeoutPromise])
-        
-        // Ensure creator is in players list (for single player AI games, creator might not be in list yet)
-        const creator = game.creator ? String(game.creator).toLowerCase() : ''
-        if (creator && !players.some(p => String(p).toLowerCase() === creator)) {
-          // Add creator to players list if not already there
-          players = [game.creator, ...players]
-          console.log('[structuredGame] Added creator to players list for game', gameId)
+        try {
+          const playersPromise = contract.getGamePlayers(gameId)
+          const timeoutPromise = new Promise<string[]>((resolve) => {
+            setTimeout(() => resolve([]), 5000) // 5 second timeout
+          })
+          players = await Promise.race([playersPromise, timeoutPromise])
+          
+          // Ensure creator is in players list (for single player AI games, creator might not be in list yet)
+          const creator = game.creator ? String(game.creator).toLowerCase() : ''
+          if (creator && !players.some(p => String(p).toLowerCase() === creator)) {
+            // Add creator to players list if not already there
+            players = [game.creator, ...players]
+            console.log('[structuredGame] Added creator to players list for game', gameId)
+          }
+        } catch (playersError: any) {
+          const playersErrorMsg = playersError?.message || playersError?.toString() || ''
+          // If it's an ABI decoding error, just skip fetching players
+          if (playersErrorMsg.includes('deferred error') || 
+              playersErrorMsg.includes('ABI decoding') ||
+              playersErrorMsg.includes('index 0')) {
+            console.warn('[structuredGame] ABI decoding error fetching players, using creator only:', playersErrorMsg)
+            players = game.creator ? [String(game.creator)] : []
+          } else {
+            throw playersError
+          }
         }
       }
     } catch (error) {
