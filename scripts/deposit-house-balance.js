@@ -47,7 +47,7 @@ async function main() {
     const networkName = hre.network.name;
     const isBase = networkName === 'base';
     
-    console.log(`\n💰 Depositing House Balance on ${isTestnet ? 'TESTNET' : 'MAINNET'} (${networkName})...\n`);
+    console.log(`\n💰 Depositing House Balance on Base Mainnet (${networkName})...\n`);
     
     // Get signers
     const signers = await hre.ethers.getSigners();
@@ -64,9 +64,7 @@ async function main() {
     console.log(`💼 Deployer Balance: ${deployerBalanceFormatted} ETH`);
     
     // Get contract address
-    const flipMatchAddress = isTestnet 
-      ? contractAddress.testnet.flipmatchContract
-      : contractAddress.mainnet.flipmatchContract;
+    const flipMatchAddress = contractAddress.mainnet.flipmatchContract;
     
     if (!flipMatchAddress) {
       console.error(`❌ FlipMatch contract address not found for ${networkName}`);
@@ -132,8 +130,7 @@ async function main() {
     console.log(`   (Increased by ${amount} ETH)\n`);
     
     // Explorer link
-    const explorerBase = isTestnet 
-      'https://basescan.org';
+    const explorerBase = 'https://basescan.org';
     
     console.log(`🔗 Transaction: ${explorerBase}/tx/${tx.hash}`);
     console.log(`🔗 Contract: ${explorerBase}/address/${flipMatchAddress}\n`);

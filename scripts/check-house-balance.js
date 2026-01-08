@@ -7,12 +7,10 @@ async function main() {
     const networkName = hre.network.name;
     const isBase = networkName === 'base';
     
-    console.log(`\n🔍 Checking House Balance on ${isTestnet ? 'TESTNET' : 'MAINNET'} (${networkName})...\n`);
+    console.log(`\n🔍 Checking House Balance on Base Mainnet (${networkName})...\n`);
     
-    // Get contract address based on network
-    const flipMatchAddress = isTestnet 
-      ? contractAddress.testnet.flipmatchContract
-      : contractAddress.mainnet.flipmatchContract;
+    // Get contract address
+    const flipMatchAddress = contractAddress.mainnet.flipmatchContract;
     
     if (!flipMatchAddress) {
       console.error(`❌ FlipMatch contract address not found for ${networkName}`);
@@ -84,8 +82,7 @@ async function main() {
     }
     
     // Explorer links
-    const explorerBase = isTestnet 
-      'https://basescan.org';
+    const explorerBase = 'https://basescan.org';
     
     console.log(`🔗 Explorer: ${explorerBase}/address/${flipMatchAddress}\n`);
     

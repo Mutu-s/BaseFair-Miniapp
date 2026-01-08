@@ -475,6 +475,9 @@ export const createGame = async (gameParams: GameParams): Promise<string> => {
     if (errorMessage.includes('VRF not requested') || errorMessage.includes('VRF already fulfilled')) {
       throw new Error('VRF error. Please try again.')
     }
+    if (errorMessage.includes('Low house') || errorMessage.includes('Insufficient house balance')) {
+      throw new Error('House balance is insufficient for this stake amount. For AI games, house needs stake * 0.95 ETH. Please try a smaller stake or wait for house to be funded.')
+    }
     if (errorMessage.includes('Insufficient balance')) {
       throw error // Re-throw balance errors as-is
     }
