@@ -1541,20 +1541,46 @@ const structuredGame = async (game: any, contractInstance?: ethers.Contract): Pr
     const gameId = safeParseUint256(game.id)
     
     // Parse cardOrder safely - these should be small numbers (0-11)
+    // FlipMatchLite doesn't have cardOrder field, but has computeCardOrder function
     let cardOrder: number[] = []
-    if (Array.isArray(game.cardOrder)) {
-      cardOrder = game.cardOrder.map((id: any) => {
-        try {
-          const num = safeParseUint256(id)
-          // Card IDs should be 0-11, validate
-          if (num >= 0 && num < 12) {
-            return num
+    try {
+      if (Array.isArray(game.cardOrder) && game.cardOrder.length > 0) {
+        // If cardOrder exists in game struct, use it
+        cardOrder = game.cardOrder.map((id: any) => {
+          try {
+            const num = safeParseUint256(id)
+            // Card IDs should be 0-11, validate
+            if (num >= 0 && num < 12) {
+              return num
+            }
+            return 0
+          } catch {
+            return 0
           }
-          return 0
-        } catch {
-          return 0
+        })
+      } else if (gameId > 0 && contractInstance) {
+        // Try to compute cardOrder using computeCardOrder function (FlipMatchLite)
+        try {
+          const computedOrder = await contractInstance.computeCardOrder(gameId)
+          if (Array.isArray(computedOrder) && computedOrder.length > 0) {
+            cardOrder = computedOrder.map((id: any) => {
+              try {
+                const num = safeParseUint256(id)
+                if (num >= 0 && num < 12) {
+                  return num
+                }
+                return 0
+              } catch {
+                return 0
+              }
+            })
+          }
+        } catch (error) {
+          console.warn('Could not compute cardOrder:', error)
         }
-      })
+      }
+    } catch (error) {
+      console.warn('Error parsing cardOrder:', error)
     }
     
     // Parse gameType safely - ensure it's 0 (AI_VS_PLAYER) or 1 (PLAYER_VS_PLAYER)
@@ -1566,6 +1592,14 @@ const structuredGame = async (game: any, contractInstance?: ethers.Contract): Pr
       console.warn(`[structuredGame] GameType mismatch: raw=${rawGameType}, parsed=${parsedGameType}, gameId=${gameId}`)
     }
     
+    // FlipMatchLite doesn't have createdAt, completedAt, endTime, cardOrder, winnerFlipCount
+    // Use startedAt for createdAt if createdAt doesn't exist (FlipMatchLite compatibility)
+    const createdAt = game.createdAt !== undefined ? safeParseUint256(game.createdAt) : safeParseUint256(game.startedAt)
+    const completedAt = game.completedAt !== undefined ? safeParseUint256(game.completedAt) : (gameStatus === GameStatus.COMPLETED ? safeParseUint256(game.startedAt) : 0)
+    const endTime = game.endTime !== undefined ? safeParseUint256(game.endTime) : 0
+    // FlipMatchLite uses winnerScore instead of winnerFlipCount
+    const winnerFlipCount = game.winnerFlipCount !== undefined ? safeParseUint256(game.winnerFlipCount) : (game.winnerScore !== undefined ? safeParseUint256(game.winnerScore) : 0)
+    
     const result = {
       id: gameId,
       name: gameName,
@@ -1576,19 +1610,19 @@ const structuredGame = async (game: any, contractInstance?: ethers.Contract): Pr
       totalPrize: game.totalPrize ? parseFloat(fromWei(game.totalPrize)) : 0,
       maxPlayers: safeParseUint256(game.maxPlayers) || 2,
       currentPlayers: safeParseUint256(game.currentPlayers),
-      createdAt: safeParseUint256(game.createdAt),
+      createdAt: createdAt,
       startedAt: safeParseUint256(game.startedAt),
-      completedAt: safeParseUint256(game.completedAt),
-      endTime: safeParseUint256(game.endTime || 0),
+      completedAt: completedAt,
+      endTime: endTime,
       winner: winner,
-      winnerFlipCount: safeParseUint256(game.winnerFlipCount),
-      winnerFinalScore: game.winnerFinalScore ? safeParseUint256(game.winnerFinalScore) : undefined, // Mission X
+      winnerFlipCount: winnerFlipCount,
+      winnerFinalScore: game.winnerFinalScore ? safeParseUint256(game.winnerFinalScore) : (game.winnerScore !== undefined ? safeParseUint256(game.winnerScore) : undefined),
       winnerVRFSeed: game.winnerVRFSeed ? String(game.winnerVRFSeed) : undefined,
       vrfRequestId: game.vrfRequestId ? String(game.vrfRequestId) : '0x',
-      vrfRandom: game.vrfRandom ? safeParseUint256(game.vrfRandom) : undefined, // Mission X
-      cardOrder: cardOrder,
+      vrfRandom: game.vrfRandom ? safeParseUint256(game.vrfRandom) : undefined,
+      cardOrder: cardOrder, // Will be empty for FlipMatchLite, computed separately
       vrfFulfilled: Boolean(game.vrfFulfilled || false),
-      playMode: game.playMode !== undefined ? Number(game.playMode) : undefined, // Mission X: 0 = FREE, 1 = WAGERED
+      playMode: game.playMode !== undefined ? Number(game.playMode) : undefined,
       winnerPrize,
       players,
       hasPassword: game.passwordHash ? game.passwordHash !== '0x0000000000000000000000000000000000000000000000000000000000000000' : false,
