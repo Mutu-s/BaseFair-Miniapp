@@ -88,6 +88,7 @@ const Page: NextPage = () => {
   const [gameData, setGameData] = useState<GameStruct | null>(null)
   const [scoresData, setScoresData] = useState<ScoreStruct[]>([])
   const [loading, setLoading] = useState<boolean>(true)
+  const [error, setError] = useState<string | null>(null)
   const [otherPlayerCompleted, setOtherPlayerCompleted] = useState<boolean>(false)
   const [lastCompletedPlayer, setLastCompletedPlayer] = useState<string | null>(null)
   
@@ -120,7 +121,7 @@ const Page: NextPage = () => {
     }
   }, [id])
   
-  // Fetch game data when gameId and chainId are available
+  // Fetch game data when gameId is available
   useEffect(() => {
     const fetchGameData = async () => {
       if (!gameId) {
@@ -128,17 +129,35 @@ const Page: NextPage = () => {
         return
       }
       
-      // Use BASE_MAINNET_CHAIN_ID (8453) instead of hardcoded values
-      const validChainId = getValidChainId()
+      // Always use BASE_MAINNET_CHAIN_ID - don't wait for chainId from wagmi
+      const validChainId = BASE_MAINNET_CHAIN_ID
       
       try {
         setLoading(true)
+        setError(null) // Clear any previous errors
         console.log('[gameplay] Fetching game data for gameId:', gameId, 'chainId:', validChainId)
-        const game = await getGame(gameId, validChainId)
-        const scores = await getScores(gameId, validChainId)
+        
+        // Add timeout wrapper for the entire fetch operation
+        const fetchPromise = Promise.all([
+          getGame(gameId, validChainId),
+          getScores(gameId, validChainId)
+        ])
+        
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Game fetch timeout after 15 seconds')), 15000)
+        })
+        
+        const [game, scores] = await Promise.race([fetchPromise, timeoutPromise]) as [GameStruct, ScoreStruct[]]
+        
+        console.log('[gameplay] Game data loaded successfully:', {
+          id: game.id,
+          name: game.name,
+          status: game.status
+        })
         
         setGameData(game)
         setScoresData(scores)
+        setLoading(false)
         
         // Redirect to correct slug-based URL if needed
         if (game && typeof id === 'string') {
@@ -155,24 +174,32 @@ const Page: NextPage = () => {
         console.error('[gameplay] Error fetching game data:', error)
         const errorMsg = error?.message || error?.toString() || 'Unknown error'
         
-        // Check if it's a "game not found" error
-        if (errorMsg.includes('not found') || errorMsg.includes('Game') && errorMsg.includes('not found')) {
-          console.error('[gameplay] Game not found:', gameId)
-          setGameData(null)
-          setScoresData([])
-        } else {
-          // Other errors - try to show helpful message
-          console.error('[gameplay] Failed to load game:', errorMsg)
-          setGameData(null)
-          setScoresData([])
-        }
-      } finally {
+        // Always set loading to false on error
         setLoading(false)
+        setGameData(null)
+        setScoresData([])
+        
+        // Set user-friendly error message
+        if (errorMsg.includes('timeout') || errorMsg.includes('network') || errorMsg.includes('fetch') || errorMsg.includes('ECONNREFUSED')) {
+          setError('Network connection failed. Please check your internet connection and try again.')
+          console.error('[gameplay] Network/timeout error:', errorMsg)
+        } else if (errorMsg.includes('not found') || (errorMsg.includes('Game') && errorMsg.includes('not found'))) {
+          setError(`Game #${gameId} not found. It may have been cancelled or does not exist.`)
+          console.error('[gameplay] Game not found:', gameId)
+        } else {
+          setError(`Failed to load game: ${errorMsg}`)
+          console.error('[gameplay] Failed to load game:', errorMsg)
+        }
       }
     }
     
-    fetchGameData()
-  }, [gameId, chainId, id])
+    // Add a small delay to ensure chainId is available (if needed)
+    const timer = setTimeout(() => {
+      fetchGameData()
+    }, 100)
+    
+    return () => clearTimeout(timer)
+  }, [gameId, id])
   
   // Initialize cards - use VRF card order if available, otherwise shuffle
   const initializeCards = useCallback((cardOrder?: number[]) => {
@@ -1150,7 +1177,7 @@ const Page: NextPage = () => {
   }
 
   // Show loading state
-  if (loading || !gameData) {
+  if (loading || (!gameData && !error)) {
     return (
       <div>
         <Head>
@@ -1159,8 +1186,63 @@ const Page: NextPage = () => {
         </Head>
         <div className="min-h-screen flex flex-col justify-center items-center">
           <div className="text-center">
-            <div className="text-4xl mb-4">🎮</div>
+            <div className="text-4xl mb-4 animate-bounce">🎮</div>
             <p className="text-gray-300 text-lg">Loading game...</p>
+            {gameId && (
+              <p className="text-gray-500 text-sm mt-2">Game ID: {gameId}</p>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+  
+  // Show error state
+  if (error && !gameData) {
+    return (
+      <div>
+        <Head>
+          <title>MonFair | Error Loading Game</title>
+          <link rel="icon" href="/favicon.ico" />
+        </Head>
+        <div className="min-h-screen flex flex-col justify-center items-center px-4">
+          <div className="text-center max-w-md">
+            <div className="text-6xl mb-4">⚠️</div>
+            <h1 className="text-2xl font-bold text-white mb-2">Failed to Load Game</h1>
+            <p className="text-gray-300 mb-6">{error}</p>
+            <div className="space-y-3">
+              <button
+                onClick={() => {
+                  setError(null)
+                  setLoading(true)
+                  // Retry fetch
+                  const fetchGameData = async () => {
+                    try {
+                      const game = await getGame(gameId!, BASE_MAINNET_CHAIN_ID)
+                      const scores = await getScores(gameId!, BASE_MAINNET_CHAIN_ID)
+                      setGameData(game)
+                      setScoresData(scores)
+                      setLoading(false)
+                    } catch (err: any) {
+                      setError(err?.message || 'Failed to load game')
+                      setLoading(false)
+                    }
+                  }
+                  if (gameId) fetchGameData()
+                }}
+                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+              >
+                🔄 Retry
+              </button>
+              <div>
+                <Link
+                  href="/games"
+                  className="text-blue-400 hover:text-blue-300 underline"
+                >
+                  ← Back to My Games
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
       </div>

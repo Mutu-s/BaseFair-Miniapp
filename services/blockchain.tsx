@@ -1162,33 +1162,37 @@ const getGameCompletedTxHash = async (gameId: number, chainIdParam?: number): Pr
 
 export const getGame = async (gameId: number, chainIdParam?: number): Promise<GameStruct> => {
   try {
-    console.log('[getGame] Fetching game:', gameId, 'chainId:', chainIdParam)
+    console.log('[getGame] Fetching game:', gameId, 'chainId:', chainIdParam || BASE_MAINNET_CHAIN_ID)
     
     if (!gameId || gameId <= 0) {
       throw new Error('Invalid game ID')
     }
     
-    const contract = await getReadOnlyContract(chainIdParam)
+    // Always use BASE_MAINNET_CHAIN_ID if not provided
+    const chainId = chainIdParam || BASE_MAINNET_CHAIN_ID
+    
+    const contract = await getReadOnlyContract(chainId)
     console.log('[getGame] Contract address:', contract.target)
     
-    // Add timeout to prevent hanging
+    // Add timeout to prevent hanging (reduced to 8 seconds for faster failure)
     const gamePromise = contract.getGame(gameId)
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('getGame timeout after 10 seconds')), 10000)
+      setTimeout(() => reject(new Error('getGame timeout after 8 seconds')), 8000)
     })
     
     const game = await Promise.race([gamePromise, timeoutPromise]) as any
+    
+    // Validate game data immediately
+    if (!game || !game.id || Number(game.id) === 0) {
+      throw new Error(`Game ${gameId} not found`)
+    }
+    
     console.log('[getGame] Raw game data received:', {
       id: game.id,
       creator: game.creator,
       status: game.status,
       gameType: game.gameType,
     })
-    
-    // Validate game data
-    if (!game || !game.id || Number(game.id) === 0) {
-      throw new Error(`Game ${gameId} not found`)
-    }
     
     const structured = await structuredGame(game, contract)
     console.log('[getGame] Structured game:', {
@@ -1205,10 +1209,11 @@ export const getGame = async (gameId: number, chainIdParam?: number): Promise<Ga
     console.error('[getGame] Error message:', errorMsg)
     
     // If it's a timeout or network error, provide more helpful message
-    if (errorMsg.includes('timeout') || errorMsg.includes('network') || errorMsg.includes('fetch')) {
+    if (errorMsg.includes('timeout') || errorMsg.includes('network') || errorMsg.includes('fetch') || errorMsg.includes('ECONNREFUSED')) {
       throw new Error(`Failed to load game ${gameId}. Please check your network connection and try again.`)
     }
     
+    // Re-throw with original error message
     throw new Error(errorMsg)
   }
 }
