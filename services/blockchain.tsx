@@ -318,8 +318,9 @@ export const createGame = async (gameParams: GameParams): Promise<string> => {
     
     console.log('[createGame] Sending transaction to create game...')
     
+    // FlipMatchLite contract only takes gameType and maxPlayers (no name, duration, password)
     // Send transaction directly - ethers v6 handles gas estimation automatically
-    const tx = await contract.createGame(gameName, gameParams.gameType, gameParams.maxPlayers, durationHours, password, {
+    const tx = await contract.createGame(gameParams.gameType, gameParams.maxPlayers, {
       value: stake,
     })
     
