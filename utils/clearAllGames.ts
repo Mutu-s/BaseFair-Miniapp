@@ -33,13 +33,7 @@ if (typeof window !== 'undefined') {
   (window as any).clearAllGames = clearAllGames
   console.log('💡 You can clear all games by running: clearAllGames() in the console')
   
-  // Check if we should auto-clear (one-time execution)
-  const shouldClear = sessionStorage.getItem('clearAllGamesOnce')
-  if (!shouldClear) {
-    // Clear all games once
-    clearAllGames()
-    // Mark as cleared to prevent re-execution
-    sessionStorage.setItem('clearAllGamesOnce', 'true')
-  }
+  // NOTE: Auto-clear functionality removed to prevent accidental data loss
+  // If you need to clear games, call clearAllGames() manually from the console
 }
 
