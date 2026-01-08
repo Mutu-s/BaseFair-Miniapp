@@ -1216,18 +1216,23 @@ export const getGame = async (gameId: number, chainIdParam?: number): Promise<Ga
       if (callErrorMsg.includes('deferred error') || 
           callErrorMsg.includes('ABI decoding') ||
           callErrorMsg.includes('index 0') ||
-          callErrorMsg.includes('could not decode')) {
-        // If game ID is within valid range, it might be a contract/ABI issue, not missing game
-        if (maxGameId !== null && gameId <= maxGameId && gameId >= 1) {
-          console.warn(`[getGame] ABI decoding error for game ${gameId} which is within valid range (1-${maxGameId}). This might be a contract structure issue.`)
-          // Try to continue - maybe we can still get some data
-          // Don't throw error, let it fall through to validation
-        } else {
-          // Game ID is out of range, definitely doesn't exist
-          if (maxGameId !== null) {
+          callErrorMsg.includes('could not decode') ||
+          callErrorMsg.includes('BAD_DATA')) {
+        // If we have maxGameId info, check if game is out of range
+        if (maxGameId !== null) {
+          if (gameId > maxGameId || gameId < 1) {
+            // Game ID is definitely out of range
             throw new Error(`Game ${gameId} does not exist. Valid game IDs are 1-${maxGameId}.`)
+          } else {
+            // Game ID is within valid range, might be a contract/ABI issue
+            console.warn(`[getGame] ABI decoding error for game ${gameId} which is within valid range (1-${maxGameId}). This might be a contract structure issue.`)
+            // Try to continue - maybe we can still get some data
+            // Don't throw error, let it fall through to validation
           }
-          throw new Error(`Game ${gameId} does not exist. Please verify the game ID is correct.`)
+        } else {
+          // No maxGameId info, can't determine if game exists
+          // Try to continue, but this will likely fail in validation
+          console.warn(`[getGame] ABI decoding error for game ${gameId}, but no game count info available. Attempting to continue...`)
         }
       }
       
