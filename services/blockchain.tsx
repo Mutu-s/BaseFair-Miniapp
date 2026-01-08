@@ -1156,11 +1156,54 @@ const getGameCompletedTxHash = async (gameId: number, chainIdParam?: number): Pr
 
 export const getGame = async (gameId: number, chainIdParam?: number): Promise<GameStruct> => {
   try {
+    console.log('[getGame] Fetching game:', gameId, 'chainId:', chainIdParam)
+    
+    if (!gameId || gameId <= 0) {
+      throw new Error('Invalid game ID')
+    }
+    
     const contract = await getReadOnlyContract(chainIdParam)
-    const game = await contract.getGame(gameId)
-    return await structuredGame(game, contract)
+    console.log('[getGame] Contract address:', contract.target)
+    
+    // Add timeout to prevent hanging
+    const gamePromise = contract.getGame(gameId)
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('getGame timeout after 10 seconds')), 10000)
+    })
+    
+    const game = await Promise.race([gamePromise, timeoutPromise]) as any
+    console.log('[getGame] Raw game data received:', {
+      id: game.id,
+      creator: game.creator,
+      status: game.status,
+      gameType: game.gameType,
+    })
+    
+    // Validate game data
+    if (!game || !game.id || Number(game.id) === 0) {
+      throw new Error(`Game ${gameId} not found`)
+    }
+    
+    const structured = await structuredGame(game, contract)
+    console.log('[getGame] Structured game:', {
+      id: structured.id,
+      name: structured.name,
+      status: structured.status,
+      gameType: structured.gameType,
+    })
+    
+    return structured
   } catch (error: any) {
-    throw new Error(getErrorMessage(error))
+    console.error('[getGame] Error:', error)
+    const errorMsg = getErrorMessage(error)
+    console.error('[getGame] Error message:', errorMsg)
+    
+    // If it's a timeout or network error, provide more helpful message
+    if (errorMsg.includes('timeout') || errorMsg.includes('network') || errorMsg.includes('fetch')) {
+      throw new Error(`Failed to load game ${gameId}. Please check your network connection and try again.`)
+    }
+    
+    throw new Error(errorMsg)
   }
 }
 
@@ -1458,15 +1501,23 @@ export const fulfillVRF = async (gameId: number): Promise<string> => {
 const structuredGame = async (game: any, contractInstance?: ethers.Contract): Promise<GameStruct> => {
   try {
     // Get players for this game
+    // Use timeout to prevent hanging
     let players: string[] = []
     try {
       const contract = contractInstance || await getReadOnlyContract()
       const gameId = Number(game.id || 0)
       if (gameId > 0) {
-        players = await contract.getGamePlayers(gameId)
+        // Add timeout to prevent hanging
+        const playersPromise = contract.getGamePlayers(gameId)
+        const timeoutPromise = new Promise<string[]>((resolve) => {
+          setTimeout(() => resolve([]), 5000) // 5 second timeout
+        })
+        players = await Promise.race([playersPromise, timeoutPromise])
       }
     } catch (error) {
       console.warn('Could not fetch game players:', error)
+      // Return empty array on error
+      players = []
     }
 
     // Calculate winner prize based on game type
@@ -1541,7 +1592,9 @@ const structuredGame = async (game: any, contractInstance?: ethers.Contract): Pr
     const gameId = safeParseUint256(game.id)
     
     // Parse cardOrder safely - these should be small numbers (0-11)
-    // FlipMatchLite doesn't have cardOrder field, but has computeCardOrder function
+    // FlipMatchLite doesn't have cardOrder field
+    // Note: cardOrder is only needed when playing the game, not for listing games
+    // We'll compute it on-demand when the game page loads to avoid slowing down getGame/getMyGames
     let cardOrder: number[] = []
     try {
       if (Array.isArray(game.cardOrder) && game.cardOrder.length > 0) {
@@ -1558,27 +1611,9 @@ const structuredGame = async (game: any, contractInstance?: ethers.Contract): Pr
             return 0
           }
         })
-      } else if (gameId > 0 && contractInstance) {
-        // Try to compute cardOrder using computeCardOrder function (FlipMatchLite)
-        try {
-          const computedOrder = await contractInstance.computeCardOrder(gameId)
-          if (Array.isArray(computedOrder) && computedOrder.length > 0) {
-            cardOrder = computedOrder.map((id: any) => {
-              try {
-                const num = safeParseUint256(id)
-                if (num >= 0 && num < 12) {
-                  return num
-                }
-                return 0
-              } catch {
-                return 0
-              }
-            })
-          }
-        } catch (error) {
-          console.warn('Could not compute cardOrder:', error)
-        }
       }
+      // Don't call computeCardOrder here - it's slow and only needed when playing
+      // Card order will be computed on-demand in the game page
     } catch (error) {
       console.warn('Error parsing cardOrder:', error)
     }
@@ -1939,7 +1974,19 @@ const fetchGamesFromBlockchain = async (
     // This method directly queries the contract's games mapping
     console.log('[getMyGames] 🚀 Using ULTIMATE method: Direct iteration through games mapping')
     const playerGames: GameStruct[] = []
-    const maxIterations = 1000 // Same for both mainnet and testnet
+    
+    // First, try to get game count to limit iterations
+    let maxIterations = 1000
+    try {
+      const gameCount = await contract.getGameCount()
+      const countNum = Number(gameCount)
+      if (countNum > 0 && countNum < 1000) {
+        maxIterations = countNum + 50 // Add buffer
+        console.log(`[getMyGames] Found game count: ${countNum}, limiting iterations to ${maxIterations}`)
+      }
+    } catch (error) {
+      console.warn('[getMyGames] Could not get game count, using default maxIterations:', error)
+    }
     
     console.log(`[getMyGames] Iterating through up to ${maxIterations} games...`)
     
@@ -1948,12 +1995,16 @@ const fetchGamesFromBlockchain = async (
     let foundGames = 0
     let checkedGames = 0
     
-    for (let i = 1; i <= maxIterations; i += batchSize) {
+    // Start from the end (most recent games) and work backwards
+    // This is more efficient as users' games are likely more recent
+    for (let i = maxIterations; i >= 1; i -= batchSize) {
       try {
         const batchPromises: Promise<GameStruct | null>[] = []
         
-        // Create batch of promises
-        for (let j = i; j < i + batchSize && j <= maxIterations; j++) {
+        // Create batch of promises (work backwards from i)
+        const startId = Math.max(1, i - batchSize + 1)
+        const endId = i
+        for (let j = endId; j >= startId; j--) {
           batchPromises.push(
             (async () => {
               try {
