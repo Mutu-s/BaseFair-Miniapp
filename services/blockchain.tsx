@@ -1293,8 +1293,16 @@ export const getGame = async (gameId: number, chainIdParam?: number): Promise<Ga
     if (errorMsg.includes('deferred error') || 
         errorMsg.includes('ABI decoding') ||
         errorMsg.includes('index 0') ||
-        errorMsg.includes('structure mismatch')) {
-      throw new Error(`Game ${gameId} may not exist or there's a contract compatibility issue. Please verify the game ID.`)
+        errorMsg.includes('structure mismatch') ||
+        errorMsg.includes('could not decode')) {
+      // Check if we have maxGameId info
+      // This error might have been caught earlier, but if it reaches here, provide helpful message
+      if (errorMsg.includes('Valid game IDs are')) {
+        // Error already has helpful message, re-throw as is
+        throw error
+      }
+      // Generic decode error - provide helpful message
+      throw new Error(`Game ${gameId} could not be decoded. This might be a contract compatibility issue or the game may not exist.`)
     }
     
     // Re-throw with original error message
