@@ -1411,7 +1411,33 @@ export const getActiveGames = async (chainIdParam?: number): Promise<GameStruct[
 export const getPlayer = async (gameId: number, playerAddress: string, chainIdParam?: number): Promise<Player> => {
   try {
     const contract = await getReadOnlyContract(chainIdParam)
-    const player = await contract.getPlayer(gameId, playerAddress)
+    
+    let player: any
+    try {
+      player = await contract.getPlayer(gameId, playerAddress)
+    } catch (callError: any) {
+      const callErrorMsg = callError?.message || callError?.toString() || ''
+      console.error('[getPlayer] Contract call error:', callErrorMsg)
+      
+      // Handle ABI decoding errors - player may not exist or contract structure mismatch
+      if (callErrorMsg.includes('could not decode') || 
+          callErrorMsg.includes('BAD_DATA') ||
+          callErrorMsg.includes('deferred error') ||
+          callErrorMsg.includes('ABI decoding')) {
+        console.warn(`[getPlayer] Could not decode player data for game ${gameId}, player ${playerAddress}. Returning default player.`)
+        // Return default player data if decode fails
+        return {
+          playerAddress: playerAddress,
+          flipCount: 0,
+          finalScore: 0,
+          completedAt: 0,
+          hasCompleted: false,
+          hasJoined: false,
+          state: 0, // NOT_STARTED
+        }
+      }
+      throw callError
+    }
     
     // Mission X: Parse finalScore if available
     const finalScore = player.finalScore !== undefined ? Number(player.finalScore) : 0
@@ -1443,7 +1469,23 @@ export const getPlayer = async (gameId: number, playerAddress: string, chainIdPa
       state: playerState, // Mission X: Player lifecycle state
     }
   } catch (error: any) {
-    throw new Error(getErrorMessage(error))
+    const errorMsg = getErrorMessage(error)
+    // If it's a decode error, return default player instead of throwing
+    if (errorMsg.includes('could not decode') || 
+        errorMsg.includes('BAD_DATA') ||
+        errorMsg.includes('deferred error')) {
+      console.warn(`[getPlayer] Returning default player due to decode error for game ${gameId}, player ${playerAddress}`)
+      return {
+        playerAddress: playerAddress,
+        flipCount: 0,
+        finalScore: 0,
+        completedAt: 0,
+        hasCompleted: false,
+        hasJoined: false,
+        state: 0, // NOT_STARTED
+      }
+    }
+    throw new Error(errorMsg)
   }
 }
 
@@ -2314,24 +2356,52 @@ export const getMyInvitations = async (): Promise<any[]> => {
 export const getScores = async (gameId: number, chainIdParam?: number): Promise<any[]> => {
   try {
     const players = await getGamePlayers(gameId, chainIdParam)
+    
+    // Handle empty players array
+    if (!players || players.length === 0) {
+      console.log(`[getScores] No players found for game ${gameId}`)
+      return []
+    }
+    
     const playerData = await Promise.all(
-      players.map(async (address) => {
-        const player = await getPlayer(gameId, address, chainIdParam)
-        return {
-          id: players.indexOf(address),
-          gameId,
-          player: address,
-          score: player.flipCount, // flipCount for display
-          finalScore: player.finalScore, // VRF-determined final score (used for winner determination)
-          prize: 0, // Will be calculated on completion
-          played: player.hasCompleted,
-          state: player.state, // Mission X: Player lifecycle state
+      players.map(async (address, index) => {
+        try {
+          const player = await getPlayer(gameId, address, chainIdParam)
+          return {
+            id: index,
+            gameId,
+            player: address,
+            score: player.flipCount, // flipCount for display
+            finalScore: player.finalScore, // VRF-determined final score (used for winner determination)
+            prize: 0, // Will be calculated on completion
+            played: player.hasCompleted,
+            state: player.state, // Mission X: Player lifecycle state
+          }
+        } catch (error: any) {
+          const errorMsg = error?.message || error?.toString() || ''
+          console.warn(`[getScores] Error fetching player ${address} for game ${gameId}:`, errorMsg)
+          // Return default player data if fetch fails
+          return {
+            id: index,
+            gameId,
+            player: address,
+            score: 0,
+            finalScore: 0,
+            prize: 0,
+            played: false,
+            state: 0, // NOT_STARTED
+          }
         }
       })
     )
-    return playerData
+    
+    // Filter out any null/undefined entries
+    return playerData.filter(p => p !== null && p !== undefined)
   } catch (error: any) {
-    throw new Error(getErrorMessage(error))
+    const errorMsg = getErrorMessage(error)
+    console.error(`[getScores] Error fetching scores for game ${gameId}:`, errorMsg)
+    // Return empty array instead of throwing to prevent page crash
+    return []
   }
 }
 
