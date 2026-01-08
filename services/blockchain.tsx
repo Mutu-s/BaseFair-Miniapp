@@ -7,6 +7,8 @@ import { getNetworkConfig } from '@/utils/networkConfig'
 import { FLIPMATCH_ABI } from '@/utils/flipMatchAbi'
 
 // Contract ABI - using TypeScript export for reliable webpack bundling
+// Note: We need to update flipMatchAbi.ts with FlipMatchLite ABI, but for now using existing ABI
+// The createGame function signature is different - we'll handle it in the function call
 const flipmatchAbi = { abi: FLIPMATCH_ABI }
 
 const toWei = (num: number | string) => ethers.parseEther(num.toString())
@@ -319,9 +321,37 @@ export const createGame = async (gameParams: GameParams): Promise<string> => {
     console.log('[createGame] Sending transaction to create game...')
     
     // FlipMatchLite contract only takes gameType and maxPlayers (no name, duration, password)
-    // Send transaction directly - ethers v6 handles gas estimation automatically
-    const tx = await contract.createGame(gameParams.gameType, gameParams.maxPlayers, {
+    // Create ABI fragment for FlipMatchLite's createGame function
+    const createGameAbi = [
+      {
+        inputs: [
+          {
+            internalType: "enum FlipMatchLite.GameType",
+            name: "_gameType",
+            type: "uint8"
+          },
+          {
+            internalType: "uint256",
+            name: "_maxPlayers",
+            type: "uint256"
+          }
+        ],
+        name: "createGame",
+        outputs: [],
+        stateMutability: "payable",
+        type: "function"
+      }
+    ]
+    
+    // Create interface with correct ABI for FlipMatchLite
+    const flipMatchLiteInterface = new ethers.Interface(createGameAbi)
+    const data = flipMatchLiteInterface.encodeFunctionData('createGame', [gameParams.gameType, gameParams.maxPlayers])
+    
+    // Send transaction directly using sendTransaction
+    const tx = await signer.sendTransaction({
+      to: contract.target,
       value: stake,
+      data: data,
     })
     
     console.log('[createGame] Transaction sent, waiting for confirmation...', tx.hash)
