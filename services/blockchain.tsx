@@ -1242,8 +1242,20 @@ export const getGame = async (gameId: number, chainIdParam?: number): Promise<Ga
     }
     
     // Validate game data immediately
+    // If game data is invalid but we got past the contract call, it might be a decode issue
     if (!game || !game.id || Number(game.id) === 0) {
+      // If game ID was in valid range, this might be a contract structure issue
+      if (maxGameId !== null && gameId <= maxGameId && gameId >= 1) {
+        throw new Error(`Game ${gameId} exists but could not be decoded. This might be a contract compatibility issue.`)
+      }
       throw new Error(`Game ${gameId} not found`)
+    }
+    
+    // Verify the returned game ID matches what we requested
+    const returnedGameId = Number(game.id)
+    if (returnedGameId !== gameId) {
+      console.warn(`[getGame] Game ID mismatch: requested ${gameId}, got ${returnedGameId}`)
+      // Still return the game, but log the warning
     }
     
     // Safely log game data
