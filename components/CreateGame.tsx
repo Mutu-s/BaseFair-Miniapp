@@ -239,17 +239,11 @@ const CreateGame: React.FC = () => {
           // If we have gameId, redirect to game page
           if (gameId) {
             try {
-              const { getGame } = await import('@/services/blockchain')
-              const { createSlug } = await import('@/utils/helper')
-              const game = await getGame(gameId, validChainId)
-              if (game && game.name) {
-                const gameSlug = createSlug(game.name, gameId)
-                console.log('[CreateGame] Redirecting to game page:', `/gameplay/${gameId}`)
-                window.location.href = `/gameplay/${gameId}`
-                return // Don't refresh games list, we're redirecting
-              }
+              console.log('[CreateGame] Redirecting to game page:', `/gameplay/${gameId}`)
+              window.location.href = `/gameplay/${gameId}`
+              return // Don't refresh games list, we're redirecting
             } catch (e) {
-              console.warn('[CreateGame] Could not fetch game for redirect, continuing with refresh:', e)
+              console.warn('[CreateGame] Could not redirect to game page:', e)
             }
           }
           

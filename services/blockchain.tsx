@@ -361,10 +361,46 @@ export const createGame = async (gameParams: GameParams): Promise<string> => {
     // Try to get the game ID from the GameCreated event
     let gameId: number | null = null
     try {
+      // Create interface for FlipMatchLite events
+      const flipMatchLiteEventAbi = [
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "uint256",
+              name: "gameId",
+              type: "uint256"
+            },
+            {
+              indexed: true,
+              internalType: "address",
+              name: "creator",
+              type: "address"
+            },
+            {
+              indexed: false,
+              internalType: "enum FlipMatchLite.GameType",
+              name: "gameType",
+              type: "uint8"
+            },
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "stake",
+              type: "uint256"
+            }
+          ],
+          name: "GameCreated",
+          type: "event"
+        }
+      ]
+      const eventInterface = new ethers.Interface(flipMatchLiteEventAbi)
+      
       // Method 1: Try to parse logs directly
       const gameCreatedEvent = receipt.logs.find((log: any) => {
         try {
-          const parsedLog = contract.interface.parseLog(log)
+          const parsedLog = eventInterface.parseLog(log)
           return parsedLog && parsedLog.name === 'GameCreated'
         } catch {
           return false
@@ -373,7 +409,7 @@ export const createGame = async (gameParams: GameParams): Promise<string> => {
       
       if (gameCreatedEvent) {
         try {
-          const parsedLog = contract.interface.parseLog(gameCreatedEvent)
+          const parsedLog = eventInterface.parseLog(gameCreatedEvent)
           if (parsedLog && parsedLog.args && parsedLog.args.length > 0) {
             gameId = Number(parsedLog.args[0])
             console.log('[createGame] Game ID from event (method 1):', gameId)
@@ -383,11 +419,12 @@ export const createGame = async (gameParams: GameParams): Promise<string> => {
         }
       }
       
-      // Method 2: Query events from the transaction
+      // Method 2: Query events from the transaction using read-only contract
       if (!gameId) {
         try {
-          const filter = contract.filters.GameCreated()
-          const events = await contract.queryFilter(filter, receipt.blockNumber, receipt.blockNumber)
+          const readOnlyContract = await getReadOnlyContract(networkChainId)
+          const filter = readOnlyContract.filters.GameCreated()
+          const events = await readOnlyContract.queryFilter(filter, receipt.blockNumber, receipt.blockNumber)
           if (events && events.length > 0) {
             // Find the event from this transaction
             const txEvent = events.find((e: any) => e.transactionHash === receipt.hash)
