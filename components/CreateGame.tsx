@@ -101,7 +101,7 @@ const CreateGame: React.FC = () => {
         const requiredBalance = stakeAmount * 0.95
         if (balanceNum < requiredBalance) {
           setError(
-            `Insufficient house balance. Required: ${requiredBalance.toFixed(2)} ETH, Available: ${balanceNum.toFixed(2)} ETH. ` +
+            `Insufficient house balance. Required: ${requiredBalance.toFixed(6)} ETH, Available: ${balanceNum.toFixed(6)} ETH. ` +
             `Please try a smaller stake amount or wait for the house balance to be funded.`
           )
           setCheckingHouseBalance(false)
@@ -587,7 +587,7 @@ const CreateGame: React.FC = () => {
               )}
               {houseBalance && gameMode === 'single' && !checkingHouseBalance && (
                 <p className="text-xs text-green-400 mt-2 px-2 font-medium">
-                  ✅ House balance: {parseFloat(houseBalance).toFixed(2)} ETH (sufficient for this stake)
+                  ✅ House balance: {parseFloat(houseBalance).toFixed(6)} ETH (sufficient for this stake)
                 </p>
               )}
               <p className="text-xs text-gray-400 mt-2 px-2 font-medium">
