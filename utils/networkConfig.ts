@@ -19,10 +19,10 @@ export interface NetworkConfig {
 }
 
 export const MAINNET_CONFIG: NetworkConfig = {
-  chainId: BASE_MAINNET_CHAIN_ID,
+  chainId: BASE_MAINNET_CHAIN_ID, // Base Mainnet: 8453
   rpcUrl: process.env.NEXT_PUBLIC_RPC_URL || 'https://mainnet.base.org',
-  name: 'Base',
-  isTestnet: false,
+  name: 'Base Mainnet',
+  isTestnet: false, // Always false - only Base Mainnet is supported
   explorerUrl: 'https://basescan.org',
   nativeCurrency: {
     name: 'Ethereum',

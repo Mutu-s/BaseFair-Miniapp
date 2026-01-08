@@ -7,9 +7,7 @@ export type NetworkType = 'mainnet'
 export const BASE_MAINNET_CHAIN_ID = 8453
 export const BASE_CHAIN_ID = BASE_MAINNET_CHAIN_ID // Alias
 
-// Legacy aliases for backward compatibility (all point to mainnet)
-export const BASE_TESTNET_CHAIN_ID = BASE_MAINNET_CHAIN_ID
-// Legacy aliases removed - use BASE_MAINNET_CHAIN_ID directly
+// Note: Only Base Mainnet (8453) is supported - no testnet
 
 /**
  * Get current network type based on chain ID
@@ -22,8 +20,8 @@ export const getNetworkType = async (chainId?: number): Promise<NetworkType> => 
 }
 
 /**
- * Get contract addresses for the current network
- * @param networkType - Network type ('mainnet' or 'testnet')
+ * Get contract addresses for Base Mainnet
+ * @param networkType - Network type (always 'mainnet' - only Base Mainnet is supported)
  * @returns Contract addresses object
  */
 export const getContractAddresses = (networkType: NetworkType = 'mainnet') => {

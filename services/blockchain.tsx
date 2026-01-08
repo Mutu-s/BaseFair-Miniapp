@@ -67,17 +67,23 @@ const getEthereumContracts = async () => {
     const network = await provider.getNetwork()
     const chainId = Number(network.chainId)
     
-    console.log('[getEthereumContracts] Connected network chainId:', chainId, '(Base Mainnet)')
+    console.log('[getEthereumContracts] Connected network chainId:', chainId)
     
-    // Use appropriate RPC URL based on chainId (for consistency)
+    // Validate chainId is Base Mainnet
+    if (chainId !== BASE_MAINNET_CHAIN_ID) {
+      console.error(`[getEthereumContracts] Invalid chainId: ${chainId}. Expected Base Mainnet (${BASE_MAINNET_CHAIN_ID})`)
+      throw new Error(`Invalid network. Please switch to Base Mainnet (Chain ID: ${BASE_MAINNET_CHAIN_ID})`)
+    }
+    
+    // Use Base Mainnet RPC URL
     const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL || 'https://mainnet.base.org'
     
     console.log('[getEthereumContracts] Using RPC URL:', rpcUrl)
     
     const contractAddress = await getFlipMatchAddress(chainId)
     if (!contractAddress) {
-      console.error(`[getEthereumContracts] FlipMatch contract not deployed on this network (chainId: ${chainId})`)
-      throw new Error(`FlipMatch contract not deployed on this network (chainId: ${chainId})`)
+      console.error(`[getEthereumContracts] FlipMatch contract not deployed on Base Mainnet (chainId: ${chainId})`)
+      throw new Error(`FlipMatch contract not deployed on Base Mainnet (chainId: ${chainId})`)
     }
     
     console.log('[getEthereumContracts] Using contract address:', contractAddress, 'for chainId:', chainId)
@@ -91,19 +97,11 @@ const getEthereumContracts = async () => {
     const contracts = new ethers.Contract(contractAddress, flipmatchAbi.abi, signer)
     return contracts
   } else {
-    // Fallback: try to detect network from window.ethereum
-    let chainId = BASE_MAINNET_CHAIN_ID
-    if (typeof window !== 'undefined' && (window as any).ethereum) {
-      try {
-        const chainIdHex = await (window as any).ethereum.request({ method: 'eth_chainId' })
-        chainId = parseInt(chainIdHex, 16)
-        console.log('[getEthereumContracts] Fallback: Detected chainId:', chainId, '(Base Mainnet)')
-      } catch (error) {
-        console.warn('[getEthereumContracts] Fallback: Failed to get chainId, defaulting to mainnet:', error)
-      }
-    }
+    // Fallback: use Base Mainnet only
+    const chainId = BASE_MAINNET_CHAIN_ID
+    console.log('[getEthereumContracts] Fallback: Using Base Mainnet (chainId:', chainId, ')')
     
-    // Use appropriate RPC URL based on chainId
+    // Use Base Mainnet RPC URL
     const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL || 'https://mainnet.base.org'
     
     console.log('[getEthereumContracts] Fallback: Using RPC URL:', rpcUrl)
@@ -111,10 +109,11 @@ const getEthereumContracts = async () => {
     const provider = new ethers.JsonRpcProvider(rpcUrl)
     const wallet = ethers.Wallet.createRandom()
     const signer = wallet.connect(provider)
+    
     const contractAddress = await getFlipMatchAddress(chainId)
     if (!contractAddress) {
-      console.error(`[getEthereumContracts] Fallback: FlipMatch contract not deployed on this network (chainId: ${chainId})`)
-      throw new Error(`FlipMatch contract not deployed on this network (chainId: ${chainId})`)
+      console.error(`[getEthereumContracts] Fallback: FlipMatch contract not deployed on Base Mainnet (chainId: ${chainId})`)
+      throw new Error(`FlipMatch contract not deployed on Base Mainnet (chainId: ${chainId})`)
     }
     
     console.log('[getEthereumContracts] Fallback: Using contract address:', contractAddress, 'for chainId:', chainId)
@@ -125,30 +124,37 @@ const getEthereumContracts = async () => {
 }
 
 const getReadOnlyContract = async (chainIdParam?: number) => {
-  // Use provided chainId, or try to get from window.ethereum, or default to mainnet
+  // Use provided chainId, or try to get from window.ethereum, or default to Base Mainnet
   let chainId = chainIdParam || BASE_MAINNET_CHAIN_ID
   
   if (!chainIdParam && typeof window !== 'undefined' && (window as any).ethereum) {
     try {
       const chainIdHex = await (window as any).ethereum.request({ method: 'eth_chainId' })
       chainId = parseInt(chainIdHex, 16)
-      console.log('[getReadOnlyContract] Detected chainId from window.ethereum:', chainId, '(Base Mainnet)')
+      console.log('[getReadOnlyContract] Detected chainId from window.ethereum:', chainId)
     } catch (error) {
-      console.warn('[getReadOnlyContract] Failed to get chainId, defaulting to mainnet:', error)
+      console.warn('[getReadOnlyContract] Failed to get chainId, defaulting to Base Mainnet:', error)
+      chainId = BASE_MAINNET_CHAIN_ID
     }
   } else if (chainIdParam) {
-    console.log('[getReadOnlyContract] Using provided chainId:', chainId, '(Base Mainnet)')
+    console.log('[getReadOnlyContract] Using provided chainId:', chainId)
   }
 
-  // Get network-specific configuration (ensures no conflicts)
+  // Validate chainId is Base Mainnet
+  if (chainId !== BASE_MAINNET_CHAIN_ID) {
+    console.warn(`[getReadOnlyContract] Invalid chainId: ${chainId}. Using Base Mainnet (${BASE_MAINNET_CHAIN_ID}) instead`)
+    chainId = BASE_MAINNET_CHAIN_ID
+  }
+
+  // Get network configuration (always Base Mainnet)
   const networkConfig = getNetworkConfig(chainId)
   console.log('[getReadOnlyContract] Network config:', networkConfig.name, 'RPC:', networkConfig.rpcUrl)
   
   const provider = new ethers.JsonRpcProvider(networkConfig.rpcUrl)
   const contractAddress = await getFlipMatchAddress(chainId)
   if (!contractAddress) {
-    console.error(`[getReadOnlyContract] FlipMatch contract not deployed on ${networkConfig.name} (chainId: ${chainId})`)
-    throw new Error(`FlipMatch contract not deployed on ${networkConfig.name} (chainId: ${chainId})`)
+    console.error(`[getReadOnlyContract] FlipMatch contract not deployed on Base Mainnet (chainId: ${chainId})`)
+    throw new Error(`FlipMatch contract not deployed on Base Mainnet (chainId: ${chainId})`)
   }
   
   console.log('[getReadOnlyContract] Using contract address:', contractAddress, 'on', networkConfig.name)
@@ -209,7 +215,7 @@ export const createGame = async (gameParams: GameParams): Promise<string> => {
     }
     
     // Check if user has enough balance (including gas fees)
-    // Reserve some amount for gas (approximately 0.005 ETH for testnet, 0.01 ETH for mainnet)
+    // Reserve some amount for gas (Base has low gas fees)
     const gasReserveAmount = 0.001 // Base has low gas fees
     const gasReserve = ethers.parseEther(gasReserveAmount.toString())
     if (balance < stake + gasReserve) {
@@ -1225,7 +1231,7 @@ export const getActiveGames = async (chainIdParam?: number): Promise<GameStruct[
       // Try to get games from events as fallback
       try {
         const filter = contract.filters.GameCreated()
-        // Use same block range for both mainnet and testnet
+        // Use block range for Base Mainnet
         const blockRange = -1000
         const events = await contract.queryFilter(filter, blockRange)
         console.log('[getActiveGames] Found', events.length, 'GameCreated events (checked', Math.abs(blockRange), 'blocks)')
@@ -1741,11 +1747,11 @@ export const getAllGames = async (chainIdParam?: number): Promise<GameStruct[]> 
     const contract = await getReadOnlyContract(chainIdParam)
     console.log('[getAllGames] Fetching all games for chainId:', chainIdParam)
     
-    // Method 1: Try to get game IDs from events first (more reliable on testnet)
+    // Method 1: Try to get game IDs from events first
     let gameIds: number[] = []
     try {
       const filter = contract.filters.GameCreated()
-      // Use same block range for both mainnet and testnet
+      // Use block range for Base Mainnet
       const blockRange = -5000
       const events = await contract.queryFilter(filter, blockRange)
       console.log('[getAllGames] Found', events.length, 'GameCreated events (checked', Math.abs(blockRange), 'blocks)')
@@ -2110,7 +2116,7 @@ const fetchGamesFromBlockchain = async (
         }
         
         // If we've checked many games and found none, we might be past the last game
-        // But continue to be thorough, especially for testnet
+        // But continue to be thorough
         if (checkedGames > 100 && foundGames === 0 && i > 100) {
           // Check if we've hit the end of games
           try {
@@ -2147,7 +2153,7 @@ const fetchGamesFromBlockchain = async (
     console.log('[getMyGames] ⚠️ Direct iteration found no games, trying event-based fallback...')
     try {
       const filter = contract.filters.GameCreated()
-      // Use same block range for both mainnet and testnet
+      // Use block range for Base Mainnet
       const blockRange = -10000
       const events = await contract.queryFilter(filter, blockRange)
       console.log('[getMyGames] Found', events.length, 'GameCreated events in fallback')

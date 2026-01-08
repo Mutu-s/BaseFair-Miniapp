@@ -11,9 +11,9 @@ import type { Session } from 'next-auth'
 import { ethers } from 'ethers'
 import '@rainbow-me/rainbowkit/styles.css'
 
-// Base Mainnet Network Configuration (Only Mainnet - No Testnet)
+// Base Mainnet Network Configuration (Only Base Mainnet - Chain ID: 8453)
 const base = {
-  id: 8453,
+  id: 8453, // Base Mainnet Chain ID
   name: 'Base',
   network: 'base',
   nativeCurrency: {

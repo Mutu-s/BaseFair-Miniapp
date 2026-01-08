@@ -17,17 +17,17 @@ export interface PythVRFConfig {
 }
 
 /**
- * Get Pyth VRF contract address for a given chain
+ * Get Pyth VRF contract address for Base Mainnet
  */
 export const getPythVRFAddress = (chainId: number): string | null => {
-  // Pyth VRF addresses for Base
-  // Using same address for both networks (if Pyth uses same contract)
-  // TODO: Update with actual Pyth VRF contract addresses when available
-  const addresses: Record<number, string> = {
-    8453: process.env.NEXT_PUBLIC_PYTH_VRF_ADDRESS || '', // Base Mainnet
+  // Only Base Mainnet (8453) is supported
+  const BASE_MAINNET_CHAIN_ID = 8453
+  if (chainId !== BASE_MAINNET_CHAIN_ID) {
+    return null
   }
   
-  return addresses[chainId] || null
+  // TODO: Update with actual Pyth VRF contract address when available
+  return process.env.NEXT_PUBLIC_PYTH_VRF_ADDRESS || null
 }
 
 /**

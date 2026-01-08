@@ -32,7 +32,7 @@ const Page: NextPage<PageProps> = ({ gameData: initialGameData, scoresData: init
   // If no initial game data from server, fetch it client-side
   useEffect(() => {
     const fetchGameData = async () => {
-      if (!initialGameData && chainId && chainId === 8453) {
+      if (!initialGameData && chainId && chainId === BASE_MAINNET_CHAIN_ID) {
         try {
           // Extract gameId from URL
           const pathParts = window.location.pathname.split('/')
@@ -66,17 +66,17 @@ const Page: NextPage<PageProps> = ({ gameData: initialGameData, scoresData: init
     
     const refreshData = async () => {
       try {
-        // Use chainId from wagmi, or try both networks if not available
-        const updatedGame = await getGame(gameData.id, chainId)
-        const updatedScores = await getScores(gameData.id, chainId)
+        // Use chainId from wagmi (Base Mainnet only)
+        const validChainId = chainId || BASE_MAINNET_CHAIN_ID
+        const updatedGame = await getGame(gameData.id, validChainId)
+        const updatedScores = await getScores(gameData.id, validChainId)
         setGameData(updatedGame)
         setScoresData(updatedScores)
         dispatch(setGame(updatedGame))
         dispatch(setScores(updatedScores))
       } catch (error) {
         console.error('Error refreshing game data:', error)
-        // If refresh fails, try the other network
-        // Only Base Mainnet is supported - no fallback needed
+        // Only Base Mainnet is supported
         console.error('Error refreshing game data from Base Mainnet')
       }
     }
@@ -249,42 +249,38 @@ export const getServerSideProps = async (context: GetServerSidePropsContext) => 
     chainId = Number(chainIdParam)
   }
   
-  // Try to fetch game data - try testnet first, then mainnet if not found
+  // Fetch game data from Base Mainnet only
   let gameData: GameStruct | null = null
   let scoresData: ScoreStruct[] | null = null
-  let lastError: Error | null = null
   
-  const networksToTry = chainId 
-    ? [chainId] 
-    : [BASE_MAINNET_CHAIN_ID]
-  
-  for (const networkChainId of networksToTry) {
-    try {
-      console.log(`[getServerSideProps] Trying to fetch game ${gameId} on chainId ${networkChainId}`)
-      gameData = await getGame(gameId, networkChainId)
-      scoresData = await getScores(gameId, networkChainId)
-      
-      // Validate that we got valid data
-      if (gameData && gameData.id === gameId && gameData.id > 0) {
-        console.log(`[getServerSideProps] Successfully fetched game ${gameId} on chainId ${networkChainId}`)
-        break
-      } else {
-        console.warn(`[getServerSideProps] Invalid game data received for gameId ${gameId} on chainId ${networkChainId}`)
-        gameData = null
-        scoresData = null
-      }
-    } catch (error: any) {
-      console.warn(`[getServerSideProps] Failed to fetch game ${gameId} on chainId ${networkChainId}:`, error?.message || error)
-      lastError = error
-      // Continue to next network
-      continue
+  try {
+    console.log(`[getServerSideProps] Fetching game ${gameId} on Base Mainnet (chainId: ${BASE_MAINNET_CHAIN_ID})`)
+    gameData = await getGame(gameId, BASE_MAINNET_CHAIN_ID)
+    scoresData = await getScores(gameId, BASE_MAINNET_CHAIN_ID)
+    
+    // Validate that we got valid data
+    if (gameData && gameData.id === gameId && gameData.id > 0) {
+      console.log(`[getServerSideProps] Successfully fetched game ${gameId} on Base Mainnet`)
+    } else {
+      console.warn(`[getServerSideProps] Invalid game data received for gameId ${gameId}`)
+      gameData = null
+      scoresData = null
+    }
+  } catch (error: any) {
+    console.warn(`[getServerSideProps] Failed to fetch game ${gameId} from Base Mainnet:`, error?.message || error)
+    // Return empty props and let client-side handle it
+    // This prevents 404 errors when server can't connect to blockchain
+    return {
+      props: {
+        gameData: null,
+        scoresData: [],
+      },
     }
   }
   
-  // If server-side fetch fails, return empty props and let client-side handle it
-  // This prevents 404 errors when server can't connect to blockchain
+  // If no valid data, return empty props
   if (!gameData || !scoresData) {
-    console.warn('[getServerSideProps] Failed to fetch game from all networks, client will fetch:', lastError)
+    console.warn('[getServerSideProps] No valid game data, client will fetch')
     return {
       props: {
         gameData: null,

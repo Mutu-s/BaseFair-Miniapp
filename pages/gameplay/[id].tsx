@@ -73,6 +73,16 @@ const Page: NextPage = () => {
   const router = useRouter()
   const { id } = router.query
   
+  // Helper to get valid chainId (defaults to BASE_MAINNET_CHAIN_ID)
+  const getValidChainId = () => {
+    const validChainId = chainId || BASE_MAINNET_CHAIN_ID
+    if (validChainId !== BASE_MAINNET_CHAIN_ID) {
+      console.warn('[gameplay] Invalid chainId:', chainId, 'Using default:', BASE_MAINNET_CHAIN_ID)
+      return BASE_MAINNET_CHAIN_ID
+    }
+    return validChainId
+  }
+  
   // Extract game ID from URL
   const [gameId, setGameId] = useState<number | null>(null)
   const [gameData, setGameData] = useState<GameStruct | null>(null)
@@ -113,15 +123,19 @@ const Page: NextPage = () => {
   // Fetch game data when gameId and chainId are available
   useEffect(() => {
     const fetchGameData = async () => {
-      if (!gameId || !chainId || (chainId !== 143 && chainId !== 10143)) {
+      if (!gameId) {
         setLoading(false)
         return
       }
       
+      // Use BASE_MAINNET_CHAIN_ID (8453) instead of hardcoded values
+      const validChainId = getValidChainId()
+      
       try {
         setLoading(true)
-        const game = await getGame(gameId, chainId)
-        const scores = await getScores(gameId, chainId)
+        console.log('[gameplay] Fetching game data for gameId:', gameId, 'chainId:', validChainId)
+        const game = await getGame(gameId, validChainId)
+        const scores = await getScores(gameId, validChainId)
         
         setGameData(game)
         setScoresData(scores)
@@ -137,10 +151,21 @@ const Page: NextPage = () => {
             window.history.replaceState({}, '', expectedPath)
           }
         }
-      } catch (error) {
-        console.error('Error fetching game data:', error)
-        setGameData(null)
-        setScoresData([])
+      } catch (error: any) {
+        console.error('[gameplay] Error fetching game data:', error)
+        const errorMsg = error?.message || error?.toString() || 'Unknown error'
+        
+        // Check if it's a "game not found" error
+        if (errorMsg.includes('not found') || errorMsg.includes('Game') && errorMsg.includes('not found')) {
+          console.error('[gameplay] Game not found:', gameId)
+          setGameData(null)
+          setScoresData([])
+        } else {
+          // Other errors - try to show helpful message
+          console.error('[gameplay] Failed to load game:', errorMsg)
+          setGameData(null)
+          setScoresData([])
+        }
       } finally {
         setLoading(false)
       }
@@ -251,8 +276,9 @@ const Page: NextPage = () => {
       await new Promise(resolve => setTimeout(resolve, 3000))
       
       // Refresh game data
-      const updatedGame = await getGame(gameData.id, chainId)
-      const updatedScores = await getScores(gameData.id, chainId)
+      const validChainId = getValidChainId()
+      const updatedGame = await getGame(gameData.id, validChainId)
+      const updatedScores = await getScores(gameData.id, validChainId)
       setGameData(updatedGame)
       setScoresData(updatedScores)
       
@@ -288,8 +314,9 @@ const Page: NextPage = () => {
     const refreshGameData = async () => {
       if (!gameData) return
       try {
-        const updatedGame = await getGame(gameData.id, chainId)
-        const updatedScores = await getScores(gameData.id, chainId)
+        const validChainId = getValidChainId()
+        const updatedGame = await getGame(gameData.id, validChainId)
+        const updatedScores = await getScores(gameData.id, validChainId)
         setGameData(updatedGame)
         setScoresData(updatedScores)
         
@@ -371,7 +398,7 @@ const Page: NextPage = () => {
       ) {
         try {
           console.log('[gameplay] Refreshing player data for single player AI game on chainId:', chainId)
-          const updatedScores = await getScores(gameData.id, chainId)
+          const updatedScores = await getScores(gameData.id, getValidChainId())
           if (address && updatedScores) {
             const updatedPlayer = updatedScores.find((p) => p.player === address)
             if (updatedPlayer) {
@@ -406,7 +433,7 @@ const Page: NextPage = () => {
       setWinnerAnnounced(true)
       const announceWinner = async () => {
         try {
-          const finalGame = await getGame(gameData.id, chainId)
+          const finalGame = await getGame(gameData.id, getValidChainId())
           if (finalGame.status === GameStatus.COMPLETED && finalGame.winner) {
             setTimeout(() => {
               window.location.href = `/results/${createSlug(finalGame.name, finalGame.id)}-${finalGame.id}`
@@ -449,8 +476,8 @@ const Page: NextPage = () => {
       
       // Refresh game data immediately
       try {
-        const updatedGame = await getGame(gameData.id, chainId)
-        const updatedScores = await getScores(gameData.id, chainId)
+        const updatedGame = await getGame(gameData.id, getValidChainId())
+        const updatedScores = await getScores(gameData.id, getValidChainId())
         setGameData(updatedGame)
         setScoresData(updatedScores)
         
@@ -750,7 +777,7 @@ const Page: NextPage = () => {
           console.log('[handleSubmit] AI game - creator is already joined in contract, skipping player data check')
           // Try to refresh player data for UI, but don't fail if not found (indexing delay)
           try {
-            const updatedScores = await getScores(gameData.id, chainId)
+            const updatedScores = await getScores(gameData.id, getValidChainId())
             if (address && updatedScores) {
               const updatedPlayer = updatedScores.find((p) => p.player === address)
               if (updatedPlayer) {
@@ -766,7 +793,7 @@ const Page: NextPage = () => {
         } else {
           // For multi-player AI games, refresh player data first
           try {
-            const updatedScores = await getScores(gameData.id, chainId)
+            const updatedScores = await getScores(gameData.id, getValidChainId())
             if (address && updatedScores) {
               const updatedPlayer = updatedScores.find((p) => p.player === address)
               if (updatedPlayer) {
@@ -788,7 +815,7 @@ const Page: NextPage = () => {
               
               // Refresh game data
               const updatedGame = await getGame(gameData.id, chainId)
-              const updatedScores = await getScores(gameData.id, chainId)
+              const updatedScores = await getScores(gameData.id, getValidChainId())
               setGameData(updatedGame)
               setScoresData(updatedScores)
               
@@ -807,7 +834,7 @@ const Page: NextPage = () => {
                 console.log('[handleSubmit] Join failed but continuing (game may have started):', errorMsg)
                 // Refresh player data in case player was already joined
                 try {
-                  const updatedScores = await getScores(gameData.id, chainId)
+                  const updatedScores = await getScores(gameData.id, getValidChainId())
                   if (address && updatedScores) {
                     const updatedPlayer = updatedScores.find((p) => p.player === address)
                     if (updatedPlayer) {
@@ -822,7 +849,7 @@ const Page: NextPage = () => {
                 // Player might already be joined, just refresh and try submit
                 console.warn('[handleSubmit] Join failed, but continuing with submit attempt:', errorMsg)
                 try {
-                  const updatedScores = await getScores(gameData.id, chainId)
+                  const updatedScores = await getScores(gameData.id, getValidChainId())
                   if (address && updatedScores) {
                     const updatedPlayer = updatedScores.find((p) => p.player === address)
                     if (updatedPlayer) {
@@ -838,7 +865,7 @@ const Page: NextPage = () => {
             // Game is IN_PROGRESS - can't join anymore, just refresh player data
             console.log('[handleSubmit] Multi-player AI game is IN_PROGRESS, refreshing player data...')
             try {
-              const updatedScores = await getScores(gameData.id, chainId)
+              const updatedScores = await getScores(gameData.id, getValidChainId())
               if (address && updatedScores) {
                 const updatedPlayer = updatedScores.find((p) => p.player === address)
                 if (updatedPlayer) {
@@ -885,7 +912,7 @@ const Page: NextPage = () => {
                     
                     // Refresh game data
                     const updatedGame = await getGame(gameData.id, chainId)
-                    const updatedScores = await getScores(gameData.id, chainId)
+                    const updatedScores = await getScores(gameData.id, getValidChainId())
                     setGameData(updatedGame)
                     setScoresData(updatedScores)
                     
@@ -903,7 +930,7 @@ const Page: NextPage = () => {
                     const errorMsg = joinError?.message?.toLowerCase() || ''
                     if (errorMsg.includes('already joined')) {
                       // Player already joined, refresh scores
-                      const updatedScores = await getScores(gameData.id, chainId)
+                      const updatedScores = await getScores(gameData.id, getValidChainId())
                       if (address && updatedScores) {
                         const updatedPlayer = updatedScores.find((p) => p.player === address)
                         if (updatedPlayer) {
@@ -991,7 +1018,7 @@ const Page: NextPage = () => {
           for (let i = 0; i < 5; i++) {
             await new Promise(resolve => setTimeout(resolve, 2000))
             updatedGame = await getGame(gameData.id, chainId)
-            const updatedScores = await getScores(gameData.id, chainId)
+            const updatedScores = await getScores(gameData.id, getValidChainId())
             setGameData(updatedGame)
             setScoresData(updatedScores)
             
@@ -1050,7 +1077,7 @@ const Page: NextPage = () => {
           for (let i = 0; i < 5; i++) {
             await new Promise(resolve => setTimeout(resolve, 2000))
             updatedGame = await getGame(gameData.id, chainId)
-            const updatedScores = await getScores(gameData.id, chainId)
+            const updatedScores = await getScores(gameData.id, getValidChainId())
             setGameData(updatedGame)
             setScoresData(updatedScores)
             
@@ -1413,7 +1440,7 @@ const Page: NextPage = () => {
                   
                   // Refresh game data
                   const updatedGame = await getGame(gameData.id, chainId)
-                  const updatedScores = await getScores(gameData.id, chainId)
+                  const updatedScores = await getScores(gameData.id, getValidChainId())
                   setGameData(updatedGame)
                   setScoresData(updatedScores)
                   
