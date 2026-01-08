@@ -1175,14 +1175,18 @@ export const getGame = async (gameId: number, chainIdParam?: number): Promise<Ga
     console.log('[getGame] Contract address:', contract.target)
     
     // First, try to check if game exists by checking game counter (if available)
+    // Note: getGameCount() returns _gameIdCounter, which is the last game ID
+    // Game IDs start from 1, so if _gameIdCounter = 8, valid IDs are 1-8
     let maxGameId: number | null = null
     try {
       const gameCount = await contract.getGameCount().catch(() => null)
       if (gameCount !== null) {
         maxGameId = Number(gameCount)
-        console.log(`[getGame] Contract has ${maxGameId} games`)
-        if (gameId > maxGameId) {
-          throw new Error(`Game ${gameId} does not exist. The contract only has ${maxGameId} game(s). Maximum game ID is ${maxGameId}.`)
+        console.log(`[getGame] Contract has games up to ID ${maxGameId} (game IDs: 1-${maxGameId})`)
+        // Game IDs start from 1, so if maxGameId = 8, valid IDs are 1-8
+        // Only reject if gameId is clearly out of range
+        if (gameId > maxGameId || gameId < 1) {
+          throw new Error(`Game ${gameId} does not exist. Valid game IDs are 1-${maxGameId}.`)
         }
       }
     } catch (error: any) {
@@ -1207,15 +1211,30 @@ export const getGame = async (gameId: number, chainIdParam?: number): Promise<Ga
       const callErrorMsg = callError?.message || callError?.toString() || ''
       console.error('[getGame] Contract call error:', callErrorMsg)
       
-      // Handle ABI decoding errors - these usually mean game doesn't exist
+      // Handle ABI decoding errors - these might mean game doesn't exist, but could also be contract issues
+      // Don't immediately assume game doesn't exist if it's within valid range
       if (callErrorMsg.includes('deferred error') || 
           callErrorMsg.includes('ABI decoding') ||
           callErrorMsg.includes('index 0') ||
-          callErrorMsg.includes('execution reverted') ||
-          callErrorMsg.includes('revert')) {
-        // Provide helpful error message
+          callErrorMsg.includes('could not decode')) {
+        // If game ID is within valid range, it might be a contract/ABI issue, not missing game
+        if (maxGameId !== null && gameId <= maxGameId && gameId >= 1) {
+          console.warn(`[getGame] ABI decoding error for game ${gameId} which is within valid range (1-${maxGameId}). This might be a contract structure issue.`)
+          // Try to continue - maybe we can still get some data
+          // Don't throw error, let it fall through to validation
+        } else {
+          // Game ID is out of range, definitely doesn't exist
+          if (maxGameId !== null) {
+            throw new Error(`Game ${gameId} does not exist. Valid game IDs are 1-${maxGameId}.`)
+          }
+          throw new Error(`Game ${gameId} does not exist. Please verify the game ID is correct.`)
+        }
+      }
+      
+      // Handle execution reverted errors (game definitely doesn't exist)
+      if (callErrorMsg.includes('execution reverted') || callErrorMsg.includes('revert')) {
         if (maxGameId !== null) {
-          throw new Error(`Game ${gameId} does not exist. The contract only has ${maxGameId} game(s). Maximum game ID is ${maxGameId}.`)
+          throw new Error(`Game ${gameId} does not exist. Valid game IDs are 1-${maxGameId}.`)
         }
         throw new Error(`Game ${gameId} does not exist. Please verify the game ID is correct.`)
       }
