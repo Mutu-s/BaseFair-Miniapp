@@ -214,15 +214,15 @@ const Page: NextPage = () => {
     
     // For newly created games, wait a bit longer for blockchain indexing
     // Check if this is a newly created game by checking localStorage
-    let initialDelay = 2000 // Default 2 seconds
+    let initialDelay = 3000 // Default 3 seconds
     try {
       const gameCreatedData = localStorage.getItem('gameCreated')
       if (gameCreatedData) {
         const parsed = JSON.parse(gameCreatedData)
-        if (parsed.gameId === gameId && Date.now() - parsed.timestamp < 60000) {
-          // Game was created less than 60 seconds ago, wait longer
-          initialDelay = 5000 // Wait 5 seconds for newly created games
-          console.log('[gameplay] Newly created game detected, waiting 5 seconds for indexing...')
+        if (parsed.gameId === gameId && Date.now() - parsed.timestamp < 120000) {
+          // Game was created less than 2 minutes ago, wait longer
+          initialDelay = 15000 // Wait 15 seconds for newly created games (createGame waits 12s)
+          console.log('[gameplay] Newly created game detected, waiting 15 seconds for indexing...')
         }
       }
     } catch (e) {

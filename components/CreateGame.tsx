@@ -224,7 +224,7 @@ const CreateGame: React.FC = () => {
         
         // Method 1: Use getGameCount (most reliable - returns _gameIdCounter)
         try {
-          await new Promise(resolve => setTimeout(resolve, 8000)) // Wait 8 seconds for indexing
+          await new Promise(resolve => setTimeout(resolve, 15000)) // Wait 15 seconds for indexing (createGame waits 12s)
           const { getReadOnlyContract } = await import('@/services/blockchain')
           const contract = await getReadOnlyContract(validChainId)
           const gameCount = await contract.getGameCount()
@@ -332,8 +332,8 @@ const CreateGame: React.FC = () => {
           const { saveGameToStorage } = await import('@/utils/gameStorage')
           
           // Wait longer for transaction to be indexed (newly created games need more time)
-          // Increased to 10 seconds to ensure blockchain indexing
-          await new Promise(resolve => setTimeout(resolve, 10000))
+          // Increased to 15 seconds to ensure blockchain indexing (createGame waits 12s)
+          await new Promise(resolve => setTimeout(resolve, 15000))
           
           try {
             // Try to fetch game with retry (getGame has built-in retry)
