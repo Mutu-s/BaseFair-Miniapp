@@ -1124,17 +1124,17 @@ const getGameCompletedTxHash = async (gameId: number, chainIdParam?: number): Pr
 }
 
 export const getGame = async (gameId: number, chainIdParam?: number, retryAttempt: number = 0): Promise<GameStruct> => {
-  const maxRetries = 10 // Increased retries
-  const retryDelays = [3000, 5000, 8000, 12000, 15000, 20000, 25000, 30000, 35000, 40000] // Longer delays
+  const maxRetries = 8 // Reduced retries for faster failure
+  const retryDelays = [2000, 3000, 5000, 8000, 10000, 15000, 20000, 25000] // Shorter delays
   
   try {
     console.log(`[getGame] Fetching game ${gameId} (attempt ${retryAttempt + 1}/${maxRetries + 1})`)
     const contract = await getReadOnlyContract(chainIdParam)
     
-    // Try to get game with timeout
+    // Try to get game with shorter timeout to prevent hanging
     const gamePromise = contract.getGame(gameId)
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('getGame timeout after 20 seconds')), 20000)
+      setTimeout(() => reject(new Error('getGame timeout after 15 seconds')), 15000)
     })
     
     const game = await Promise.race([gamePromise, timeoutPromise]) as any

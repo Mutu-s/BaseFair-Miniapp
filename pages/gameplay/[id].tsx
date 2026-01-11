@@ -94,11 +94,16 @@ const Page: NextPage = () => {
   
   // Extract game ID from slug or direct ID
   useEffect(() => {
-    if (!id) return
+    if (!id) {
+      setLoading(false)
+      setError('No game ID provided')
+      return
+    }
     
     let extractedGameId: number | null = null
     if (typeof id === 'string') {
       // Try to extract ID from slug (e.g., "deneme-1" -> 1)
+      // Or if it's just a number like "3", parse it directly
       const parts = id.split('-')
       const lastPart = parts[parts.length - 1]
       const parsedId = parseInt(lastPart, 10)
@@ -117,7 +122,12 @@ const Page: NextPage = () => {
     }
     
     if (extractedGameId) {
+      console.log('[gameplay] Extracted game ID:', extractedGameId, 'from URL:', id)
       setGameId(extractedGameId)
+    } else {
+      console.error('[gameplay] Could not extract game ID from:', id)
+      setLoading(false)
+      setError('Invalid game ID')
     }
   }, [id])
   
@@ -140,8 +150,14 @@ const Page: NextPage = () => {
         
         // getGame now has built-in retry mechanism (up to 8 retries)
         // So we just call it once and let it handle retries internally
+        // Add overall timeout to prevent infinite loading
+        const gamePromise = getGame(gameId, validChainId)
+        const overallTimeout = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('Game loading timeout after 2 minutes. Please try again.')), 120000) // 2 minutes max
+        })
+        
         const [game, scores] = await Promise.all([
-          getGame(gameId, validChainId),
+          Promise.race([gamePromise, overallTimeout]),
           getScores(gameId, validChainId).catch((err) => {
             // If scores fail, return empty array (game is more important)
             console.warn('[gameplay] Could not fetch scores, continuing with empty array:', err)
@@ -247,6 +263,22 @@ const Page: NextPage = () => {
   }, [])
 
   const [flipCount, setFlipCount] = useState<number>(0)
+  const [loadingTimeout, setLoadingTimeout] = useState(false)
+  
+  // Loading timeout effect
+  useEffect(() => {
+    if (loading && gameId) {
+      const timeout = setTimeout(() => {
+        setLoadingTimeout(true)
+        setLoading(false)
+        setError('Game loading is taking too long. The game may not exist or there may be a network issue. Please try again or check the game ID.')
+      }, 90000) // 90 seconds max loading time
+      
+      return () => clearTimeout(timeout)
+    } else {
+      setLoadingTimeout(false)
+    }
+  }, [loading, gameId])
   const [player, setPlayer] = useState<ScoreStruct | null>(null)
   const [allCardsFlipped, setAllCardsFlipped] = useState<boolean>(false)
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
@@ -1196,7 +1228,7 @@ const Page: NextPage = () => {
   }
 
   // Show loading state
-  if (loading || (!gameData && !error)) {
+  if (loading || (!gameData && !error && !loadingTimeout)) {
     return (
       <div>
         <Head>
@@ -1209,6 +1241,17 @@ const Page: NextPage = () => {
             <p className="text-gray-300 text-lg">Loading game...</p>
             {gameId && (
               <p className="text-gray-500 text-sm mt-2">Game ID: {gameId}</p>
+            )}
+            {loadingTimeout && (
+              <div className="mt-4">
+                <p className="text-red-400 text-sm mb-2">Loading timeout. Please refresh the page.</p>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
+                >
+                  Refresh Page
+                </button>
+              </div>
             )}
           </div>
         </div>
