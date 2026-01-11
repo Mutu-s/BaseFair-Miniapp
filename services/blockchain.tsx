@@ -444,22 +444,37 @@ export const createGame = async (gameParams: GameParams): Promise<string> => {
         }
       }
       
-      // Method 3: Try to get the latest game ID by querying getActiveGames
+      // Method 3: Try to get the latest game ID by querying getGameCount
       if (!gameId) {
         try {
           // Wait a bit for the transaction to be indexed
-          await new Promise(resolve => setTimeout(resolve, 2000))
-          const activeGames = await contract.getActiveGames()
-          if (activeGames && activeGames.length > 0) {
-            // Get the highest game ID (likely the one we just created)
-            const gameIds = activeGames.map((id: any) => Number(id)).filter((id: number) => id > 0)
-            if (gameIds.length > 0) {
-              gameId = Math.max(...gameIds)
-              console.log('[createGame] Game ID from getActiveGames (method 3):', gameId)
+          await new Promise(resolve => setTimeout(resolve, 3000))
+          
+          // Try getGameCount first (more reliable)
+          try {
+            const gameCount = await contract.getGameCount()
+            if (gameCount && Number(gameCount) > 0) {
+              gameId = Number(gameCount)
+              console.log('[createGame] Game ID from getGameCount (method 3a):', gameId)
+            }
+          } catch (countError) {
+            console.warn('[createGame] Could not get game count, trying getActiveGames:', countError)
+          }
+          
+          // Fallback to getActiveGames
+          if (!gameId) {
+            const activeGames = await contract.getActiveGames()
+            if (activeGames && activeGames.length > 0) {
+              // Get the highest game ID (likely the one we just created)
+              const gameIds = activeGames.map((id: any) => Number(id)).filter((id: number) => id > 0)
+              if (gameIds.length > 0) {
+                gameId = Math.max(...gameIds)
+                console.log('[createGame] Game ID from getActiveGames (method 3b):', gameId)
+              }
             }
           }
         } catch (error) {
-          console.warn('[createGame] Could not get game ID from getActiveGames (method 3):', error)
+          console.warn('[createGame] Could not get game ID from getGameCount/getActiveGames (method 3):', error)
         }
       }
     } catch (error) {
@@ -1160,9 +1175,12 @@ const getGameCompletedTxHash = async (gameId: number, chainIdParam?: number): Pr
   }
 }
 
-export const getGame = async (gameId: number, chainIdParam?: number): Promise<GameStruct> => {
+export const getGame = async (gameId: number, chainIdParam?: number, retryAttempt: number = 0): Promise<GameStruct> => {
+  const maxRetries = 15 // Increased to 15 retries for newly created games
+  const retryDelays = [2000, 2500, 3000, 3500, 4000, 4500, 5000, 6000, 7000, 8000, 9000, 10000, 12000, 15000, 20000] // Longer delays for blockchain indexing
+  
   try {
-    console.log('[getGame] Fetching game:', gameId, 'chainId:', chainIdParam || BASE_MAINNET_CHAIN_ID)
+    console.log(`[getGame] Fetching game: ${gameId}, chainId: ${chainIdParam || BASE_MAINNET_CHAIN_ID}, attempt: ${retryAttempt + 1}`)
     
     if (!gameId || gameId <= 0) {
       throw new Error('Invalid game ID')
@@ -1188,6 +1206,11 @@ export const getGame = async (gameId: number, chainIdParam?: number): Promise<Ga
         if (gameId > maxGameId || gameId < 1) {
           throw new Error(`Game ${gameId} does not exist. Valid game IDs are 1-${maxGameId}.`)
         }
+        // If gameId is exactly maxGameId, it's likely a newly created game
+        // Give it more time to index
+        if (gameId === maxGameId && retryAttempt < 5) {
+          console.log(`[getGame] Game ${gameId} is the latest game (maxGameId). This might be a newly created game, will retry more aggressively.`)
+        }
       }
     } catch (error: any) {
       // If error is already our custom message, re-throw it
@@ -1198,41 +1221,56 @@ export const getGame = async (gameId: number, chainIdParam?: number): Promise<Ga
       console.log('[getGame] Could not check game count, proceeding with getGame call')
     }
     
-    // Add timeout to prevent hanging (reduced to 8 seconds for faster failure)
+    // Add timeout to prevent hanging
     let game: any
     try {
       const gamePromise = contract.getGame(gameId)
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('getGame timeout after 8 seconds')), 8000)
+        setTimeout(() => reject(new Error('getGame timeout after 10 seconds')), 10000)
       })
       
       game = await Promise.race([gamePromise, timeoutPromise]) as any
     } catch (callError: any) {
       const callErrorMsg = callError?.message || callError?.toString() || ''
-      console.error('[getGame] Contract call error:', callErrorMsg)
+      console.error(`[getGame] Contract call error (attempt ${retryAttempt + 1}):`, callErrorMsg)
       
-      // Handle ABI decoding errors - these might mean game doesn't exist, but could also be contract issues
-      // Don't immediately assume game doesn't exist if it's within valid range
-      if (callErrorMsg.includes('deferred error') || 
-          callErrorMsg.includes('ABI decoding') ||
-          callErrorMsg.includes('index 0') ||
-          callErrorMsg.includes('could not decode') ||
-          callErrorMsg.includes('BAD_DATA')) {
+      // Handle ABI decoding errors - these might mean game doesn't exist, but could also be indexing delay
+      const isDecodeError = callErrorMsg.includes('deferred error') || 
+                            callErrorMsg.includes('ABI decoding') ||
+                            callErrorMsg.includes('index 0') ||
+                            callErrorMsg.includes('could not decode') ||
+                            callErrorMsg.includes('BAD_DATA') ||
+                            callErrorMsg.includes('structure mismatch')
+      
+      if (isDecodeError) {
         // If we have maxGameId info, check if game is out of range
         if (maxGameId !== null) {
           if (gameId > maxGameId || gameId < 1) {
             // Game ID is definitely out of range
             throw new Error(`Game ${gameId} does not exist. Valid game IDs are 1-${maxGameId}.`)
           } else {
-            // Game ID is within valid range, might be a contract/ABI issue
-            console.warn(`[getGame] ABI decoding error for game ${gameId} which is within valid range (1-${maxGameId}). This might be a contract structure issue.`)
-            // Try to continue - maybe we can still get some data
-            // Don't throw error, let it fall through to validation
+            // Game ID is within valid range - this is likely an indexing delay
+            // Retry if we haven't exceeded max retries
+            if (retryAttempt < maxRetries) {
+              const delay = retryDelays[retryAttempt] || 5000
+              console.log(`[getGame] ABI decode error for game ${gameId} (within valid range). Retrying in ${delay}ms... (attempt ${retryAttempt + 1}/${maxRetries})`)
+              await new Promise(resolve => setTimeout(resolve, delay))
+              return getGame(gameId, chainIdParam, retryAttempt + 1)
+            } else {
+              // Max retries reached
+              throw new Error(`Game ${gameId} exists but could not be decoded after ${maxRetries + 1} attempts. The game may still be indexing on the blockchain. Please wait a moment and try again.`)
+            }
           }
         } else {
-          // No maxGameId info, can't determine if game exists
-          // Try to continue, but this will likely fail in validation
-          console.warn(`[getGame] ABI decoding error for game ${gameId}, but no game count info available. Attempting to continue...`)
+          // No maxGameId info - retry anyway if within retry limit
+          if (retryAttempt < maxRetries) {
+            const delay = retryDelays[retryAttempt] || 5000
+            console.log(`[getGame] ABI decode error for game ${gameId} (no game count info). Retrying in ${delay}ms... (attempt ${retryAttempt + 1}/${maxRetries})`)
+            await new Promise(resolve => setTimeout(resolve, delay))
+            return getGame(gameId, chainIdParam, retryAttempt + 1)
+          } else {
+            throw new Error(`Game ${gameId} could not be decoded after ${maxRetries + 1} attempts. The game may still be indexing on the blockchain.`)
+          }
         }
       }
       
@@ -1243,15 +1281,31 @@ export const getGame = async (gameId: number, chainIdParam?: number): Promise<Ga
         }
         throw new Error(`Game ${gameId} does not exist. Please verify the game ID is correct.`)
       }
+      
+      // For other errors, retry if it's a timeout and we haven't exceeded max retries
+      if (callErrorMsg.includes('timeout') && retryAttempt < maxRetries) {
+        const delay = retryDelays[retryAttempt] || 5000
+        console.log(`[getGame] Timeout error. Retrying in ${delay}ms... (attempt ${retryAttempt + 1}/${maxRetries})`)
+        await new Promise(resolve => setTimeout(resolve, delay))
+        return getGame(gameId, chainIdParam, retryAttempt + 1)
+      }
+      
       throw callError
     }
     
     // Validate game data immediately
     // If game data is invalid but we got past the contract call, it might be a decode issue
     if (!game || !game.id || Number(game.id) === 0) {
-      // If game ID was in valid range, this might be a contract structure issue
+      // If game ID was in valid range, retry if we haven't exceeded max retries
       if (maxGameId !== null && gameId <= maxGameId && gameId >= 1) {
-        throw new Error(`Game ${gameId} exists but could not be decoded. This might be a contract compatibility issue.`)
+        if (retryAttempt < maxRetries) {
+          const delay = retryDelays[retryAttempt] || 5000
+          console.log(`[getGame] Game ${gameId} exists but data is invalid. Retrying in ${delay}ms... (attempt ${retryAttempt + 1}/${maxRetries})`)
+          await new Promise(resolve => setTimeout(resolve, delay))
+          return getGame(gameId, chainIdParam, retryAttempt + 1)
+        } else {
+          throw new Error(`Game ${gameId} exists but could not be decoded after ${maxRetries + 1} attempts. The game may still be indexing on the blockchain.`)
+        }
       }
       throw new Error(`Game ${gameId} not found`)
     }
@@ -1285,11 +1339,19 @@ export const getGame = async (gameId: number, chainIdParam?: number): Promise<Ga
     
     return structured
   } catch (error: any) {
-    console.error('[getGame] Error:', error)
+    console.error(`[getGame] Error (attempt ${retryAttempt + 1}):`, error)
     const errorMsg = getErrorMessage(error)
     console.error('[getGame] Error message:', errorMsg)
     
-    // If it's a timeout or network error, provide more helpful message
+    // If it's a timeout or network error, retry if we haven't exceeded max retries
+    if ((errorMsg.includes('timeout') || errorMsg.includes('network') || errorMsg.includes('fetch') || errorMsg.includes('ECONNREFUSED')) && retryAttempt < maxRetries) {
+      const delay = retryDelays[retryAttempt] || 5000
+      console.log(`[getGame] Network/timeout error. Retrying in ${delay}ms... (attempt ${retryAttempt + 1}/${maxRetries})`)
+      await new Promise(resolve => setTimeout(resolve, delay))
+      return getGame(gameId, chainIdParam, retryAttempt + 1)
+    }
+    
+    // If it's a timeout or network error after max retries, provide more helpful message
     if (errorMsg.includes('timeout') || errorMsg.includes('network') || errorMsg.includes('fetch') || errorMsg.includes('ECONNREFUSED')) {
       throw new Error(`Failed to load game ${gameId}. Please check your network connection and try again.`)
     }
@@ -1307,7 +1369,7 @@ export const getGame = async (gameId: number, chainIdParam?: number): Promise<Ga
         throw error
       }
       // Generic decode error - provide helpful message
-      throw new Error(`Game ${gameId} could not be decoded. This might be a contract compatibility issue or the game may not exist.`)
+      throw new Error(`Game ${gameId} could not be decoded after ${maxRetries + 1} attempts. The game may still be indexing on the blockchain. Please wait a moment and refresh the page.`)
     }
     
     // Re-throw with original error message

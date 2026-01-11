@@ -1,5 +1,5 @@
 import { ethers } from 'ethers'
-import { getCasinoTreasuryAddress, getCasinoGameAddress, BASE_MAINNET_CHAIN_ID } from '../utils/network'
+import { getCasinoTreasuryAddress, getCasinoGameAddress, BASE_MAINNET_CHAIN_ID } from '@/utils/network'
 
 // Helper to get provider (works on both client and server)
 const getProvider = () => {

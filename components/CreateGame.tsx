@@ -217,6 +217,26 @@ const CreateGame: React.FC = () => {
       // Also set storage event for cross-tab communication
       localStorage.setItem('gameCreated', JSON.stringify({ chainId: validChainId, gameId, timestamp: Date.now() }))
       
+      // Verify gameId is valid before redirecting
+      // If gameId is null, try to get it from getActiveGames or wait and retry
+      if (!gameId) {
+        try {
+          console.log('[CreateGame] Game ID not found in event, trying to get from getActiveGames...')
+          await new Promise(resolve => setTimeout(resolve, 5000)) // Wait 5 seconds for indexing
+          const activeGames = await getActiveGames(validChainId)
+          if (activeGames && activeGames.length > 0) {
+            // Get the highest game ID (likely the one we just created)
+            const gameIds = activeGames.map(g => g.id).filter((id: number) => id > 0)
+            if (gameIds.length > 0) {
+              gameId = Math.max(...gameIds)
+              console.log('[CreateGame] ✅ Got game ID from getActiveGames:', gameId)
+            }
+          }
+        } catch (e) {
+          console.warn('[CreateGame] Could not get game ID from getActiveGames:', e)
+        }
+      }
+      
       // If we have gameId, try to save to localStorage first, then redirect
       if (gameId && playerAddress) {
         console.log('[CreateGame] Saving game to localStorage before redirect...')
@@ -225,10 +245,12 @@ const CreateGame: React.FC = () => {
           const { getGame } = await import('@/services/blockchain')
           const { saveGameToStorage } = await import('@/utils/gameStorage')
           
-          // Wait a bit for transaction to be indexed
-          await new Promise(resolve => setTimeout(resolve, 2000))
+          // Wait longer for transaction to be indexed (newly created games need more time)
+          // Increased to 10 seconds to ensure blockchain indexing
+          await new Promise(resolve => setTimeout(resolve, 10000))
           
           try {
+            // Try to fetch game with retry (getGame has built-in retry)
             const game = await getGame(gameId, validChainId)
             if (game) {
               saveGameToStorage(game, validChainId, playerAddress)
@@ -323,7 +345,7 @@ const CreateGame: React.FC = () => {
           console.log('[CreateGame] Falling back to page reload')
           window.location.reload()
         }
-      }, 3000) // Wait 3 seconds for transaction to be indexed (reduced from 5)
+      }, 8000) // Wait 8 seconds for transaction to be indexed
     } catch (error: any) {
       const errorMsg = getErrorMessage(error)
       console.error('[CreateGame] Error creating game:', errorMsg)

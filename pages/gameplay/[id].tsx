@@ -74,14 +74,14 @@ const Page: NextPage = () => {
   const { id } = router.query
   
   // Helper to get valid chainId (defaults to BASE_MAINNET_CHAIN_ID)
-  const getValidChainId = () => {
+  const getValidChainId = useCallback(() => {
     const validChainId = chainId || BASE_MAINNET_CHAIN_ID
     if (validChainId !== BASE_MAINNET_CHAIN_ID) {
       console.warn('[gameplay] Invalid chainId:', chainId, 'Using default:', BASE_MAINNET_CHAIN_ID)
       return BASE_MAINNET_CHAIN_ID
     }
     return validChainId
-  }
+  }, [chainId])
   
   // Extract game ID from URL
   const [gameId, setGameId] = useState<number | null>(null)
@@ -122,6 +122,7 @@ const Page: NextPage = () => {
   }, [id])
   
   // Fetch game data when gameId is available
+  // getGame function now has built-in retry mechanism, so we just call it once
   useEffect(() => {
     const fetchGameData = async () => {
       if (!gameId) {
@@ -135,19 +136,18 @@ const Page: NextPage = () => {
       try {
         setLoading(true)
         setError(null) // Clear any previous errors
-        console.log('[gameplay] Fetching game data for gameId:', gameId, 'chainId:', validChainId)
+        console.log(`[gameplay] Fetching game data for gameId: ${gameId}, chainId: ${validChainId}`)
         
-        // Add timeout wrapper for the entire fetch operation
-        const fetchPromise = Promise.all([
+        // getGame now has built-in retry mechanism (up to 8 retries)
+        // So we just call it once and let it handle retries internally
+        const [game, scores] = await Promise.all([
           getGame(gameId, validChainId),
-          getScores(gameId, validChainId)
+          getScores(gameId, validChainId).catch((err) => {
+            // If scores fail, return empty array (game is more important)
+            console.warn('[gameplay] Could not fetch scores, continuing with empty array:', err)
+            return [] as ScoreStruct[]
+          })
         ])
-        
-        const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Game fetch timeout after 15 seconds')), 15000)
-        })
-        
-        const [game, scores] = await Promise.race([fetchPromise, timeoutPromise]) as [GameStruct, ScoreStruct[]]
         
         console.log('[gameplay] Game data loaded successfully:', {
           id: game.id,
@@ -158,6 +158,7 @@ const Page: NextPage = () => {
         setGameData(game)
         setScoresData(scores)
         setLoading(false)
+        setError(null)
         
         // Redirect to correct slug-based URL if needed
         if (game && typeof id === 'string') {
@@ -174,7 +175,6 @@ const Page: NextPage = () => {
         console.error('[gameplay] Error fetching game data:', error)
         const errorMsg = error?.message || error?.toString() || 'Unknown error'
         
-        // Always set loading to false on error
         setLoading(false)
         setGameData(null)
         setScoresData([])
@@ -186,6 +186,9 @@ const Page: NextPage = () => {
         } else if (errorMsg.includes('not found') || (errorMsg.includes('Game') && errorMsg.includes('not found'))) {
           setError(`Game #${gameId} not found. It may have been cancelled or does not exist.`)
           console.error('[gameplay] Game not found:', gameId)
+        } else if (errorMsg.includes('still be indexing') || errorMsg.includes('could not be decoded')) {
+          setError(`Game #${gameId} is still being processed on the blockchain. Please wait a moment and click "Retry" below.`)
+          console.error('[gameplay] Game indexing error:', errorMsg)
         } else {
           setError(`Failed to load game: ${errorMsg}`)
           console.error('[gameplay] Failed to load game:', errorMsg)
@@ -193,10 +196,26 @@ const Page: NextPage = () => {
       }
     }
     
-    // Add a small delay to ensure chainId is available (if needed)
+    // For newly created games, wait a bit longer for blockchain indexing
+    // Check if this is a newly created game by checking localStorage
+    let initialDelay = 2000 // Default 2 seconds
+    try {
+      const gameCreatedData = localStorage.getItem('gameCreated')
+      if (gameCreatedData) {
+        const parsed = JSON.parse(gameCreatedData)
+        if (parsed.gameId === gameId && Date.now() - parsed.timestamp < 60000) {
+          // Game was created less than 60 seconds ago, wait longer
+          initialDelay = 5000 // Wait 5 seconds for newly created games
+          console.log('[gameplay] Newly created game detected, waiting 5 seconds for indexing...')
+        }
+      }
+    } catch (e) {
+      // Ignore localStorage errors
+    }
+    
     const timer = setTimeout(() => {
       fetchGameData()
-    }, 100)
+    }, initialDelay)
     
     return () => clearTimeout(timer)
   }, [gameId, id])
@@ -383,7 +402,7 @@ const Page: NextPage = () => {
       const interval = setInterval(refreshGameData, 3000)
       return () => clearInterval(interval)
     }
-  }, [gameData?.id, gameData?.status, address, gameCompleted, countdown, chainId, gameData])
+  }, [gameData?.id, gameData?.status, address, gameCompleted, countdown, chainId, gameData, getValidChainId])
 
 
   useEffect(() => {
@@ -446,7 +465,7 @@ const Page: NextPage = () => {
     if (validChainId === BASE_MAINNET_CHAIN_ID) {
       refreshPlayerData()
     }
-  }, [gameData?.gameType, gameData?.maxPlayers, gameData?.id, gameData?.creator, address, player, isSubmitting, chainId])
+  }, [gameData?.gameType, gameData?.maxPlayers, gameData?.id, gameData?.creator, address, player, isSubmitting, chainId, getValidChainId])
 
   // Countdown timer for AI vs Player games
   useEffect(() => {
@@ -472,7 +491,7 @@ const Page: NextPage = () => {
       }
       announceWinner()
     }
-  }, [countdown, gameData?.gameType, gameData?.id, gameData?.name, address, winnerAnnounced, chainId])
+  }, [countdown, gameData?.gameType, gameData?.id, gameData?.name, address, winnerAnnounced, chainId, getValidChainId])
 
   const handleAutoSubmit = useCallback(async () => {
     if (!address || !player || isSubmitting || gameCompleted) return
@@ -543,7 +562,7 @@ const Page: NextPage = () => {
       console.error('Auto-submit error:', error)
       setIsSubmitting(false)
     }
-  }, [address, player, gameData?.status, gameData?.vrfFulfilled, gameData?.id, flipCount, isSubmitting, gameCompleted, chainId])
+  }, [address, player, gameData?.status, gameData?.vrfFulfilled, gameData?.id, flipCount, isSubmitting, gameCompleted, getValidChainId])
 
   // Auto-submit disabled - user should manually click Submit Game button (mainnet style)
   // This allows user to review their game before submitting
@@ -1213,26 +1232,39 @@ const Page: NextPage = () => {
             <div className="space-y-3">
               <button
                 onClick={() => {
+                  // Reload the page to trigger the useEffect retry mechanism
+                  // This will use the built-in retry mechanism in getGame
+                  window.location.reload()
+                }}
+                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+              >
+                🔄 Retry Loading Game
+              </button>
+              <button
+                onClick={() => {
+                  // Force retry with a fresh fetch (getGame has built-in retry)
                   setError(null)
                   setLoading(true)
-                  // Retry fetch
                   const fetchGameData = async () => {
                     try {
+                      // getGame now has built-in retry mechanism, so just call it
                       const game = await getGame(gameId!, BASE_MAINNET_CHAIN_ID)
-                      const scores = await getScores(gameId!, BASE_MAINNET_CHAIN_ID)
+                      const scores = await getScores(gameId!, BASE_MAINNET_CHAIN_ID).catch(() => [] as ScoreStruct[])
                       setGameData(game)
                       setScoresData(scores)
                       setLoading(false)
+                      setError(null)
                     } catch (err: any) {
-                      setError(err?.message || 'Failed to load game')
+                      const errMsg = err?.message || 'Failed to load game'
+                      setError(errMsg)
                       setLoading(false)
                     }
                   }
                   if (gameId) fetchGameData()
                 }}
-                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+                className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors"
               >
-                🔄 Retry
+                ⏳ Wait & Retry (Recommended)
               </button>
               <div>
                 <Link
