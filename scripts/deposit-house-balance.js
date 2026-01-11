@@ -73,9 +73,9 @@ async function main() {
     
     console.log(`📋 FlipMatch Contract: ${flipMatchAddress}\n`);
     
-    // Get FlipMatch contract
-    const FlipMatch = await hre.ethers.getContractFactory('contracts/FlipMatch.sol:FlipMatch');
-    const flipMatch = FlipMatch.attach(flipMatchAddress);
+    // Get FlipMatchLite contract
+    const FlipMatchLite = await hre.ethers.getContractFactory('contracts/FlipMatchLite.sol:FlipMatchLite');
+    const flipMatch = FlipMatchLite.attach(flipMatchAddress);
     
     // Check if deployer is owner
     const owner = await flipMatch.owner();
