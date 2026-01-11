@@ -364,103 +364,70 @@ export const createGame = async (gameParams: GameParams): Promise<string> => {
     const receipt = await waitForTransactionWithRetry(tx, 'createGame')
     console.log('[createGame] Transaction confirmed! Block:', receipt.blockNumber, 'Hash:', receipt.hash)
     
-    // Extract game ID from GameCreated event
-    // CRITICAL: Must be reliable - use getGameCount as primary method
+    // Try to get the game ID from the GameCreated event
     let gameId: number | null = null
-    
-    console.log('[createGame] ===== Extracting game ID =====')
-    
-    // Method 1: Try to parse GameCreated event from receipt logs
     try {
-      const contractInterface = contract.interface
-      console.log('[createGame] 📋 Parsing receipt logs for GameCreated event...')
-      
-      for (const log of receipt.logs) {
+      // Method 1: Try to parse logs directly
+      const gameCreatedEvent = receipt.logs.find((log: any) => {
         try {
-          const parsedLog = contractInterface.parseLog(log)
-          if (parsedLog?.name === 'GameCreated' && parsedLog.args && parsedLog.args.length > 0) {
-            const extractedGameId = Number(parsedLog.args[0])
-            if (extractedGameId > 0) {
-              gameId = extractedGameId
-              console.log('[createGame] ✅ Game ID from event (method 1):', gameId)
-              break
+          const parsedLog = contract.interface.parseLog(log)
+          return parsedLog && parsedLog.name === 'GameCreated'
+        } catch {
+          return false
+        }
+      })
+      
+      if (gameCreatedEvent) {
+        try {
+          const parsedLog = contract.interface.parseLog(gameCreatedEvent)
+          if (parsedLog && parsedLog.args && parsedLog.args.length > 0) {
+            gameId = Number(parsedLog.args[0])
+            console.log('[createGame] Game ID from event (method 1):', gameId)
+          }
+        } catch (error) {
+          console.warn('[createGame] Could not parse GameCreated event (method 1):', error)
+        }
+      }
+      
+      // Method 2: Query events from the transaction
+      if (!gameId) {
+        try {
+          const filter = contract.filters.GameCreated()
+          const events = await contract.queryFilter(filter, receipt.blockNumber, receipt.blockNumber)
+          if (events && events.length > 0) {
+            // Find the event from this transaction
+            const txEvent = events.find((e: any) => e.transactionHash === receipt.hash)
+            if (txEvent && 'args' in txEvent && txEvent.args && Array.isArray(txEvent.args) && txEvent.args.length > 0) {
+              gameId = Number(txEvent.args[0])
+              console.log('[createGame] Game ID from event (method 2):', gameId)
             }
           }
-        } catch {
-          continue
+        } catch (error) {
+          console.warn('[createGame] Could not query GameCreated event (method 2):', error)
+        }
+      }
+      
+      // Method 3: Try to get the latest game ID by querying getActiveGames
+      if (!gameId) {
+        try {
+          // Wait a bit for the transaction to be indexed
+          await new Promise(resolve => setTimeout(resolve, 2000))
+          const activeGames = await contract.getActiveGames()
+          if (activeGames && activeGames.length > 0) {
+            // Get the highest game ID (likely the one we just created)
+            const gameIds = activeGames.map((id: any) => Number(id)).filter((id: number) => id > 0)
+            if (gameIds.length > 0) {
+              gameId = Math.max(...gameIds)
+              console.log('[createGame] Game ID from getActiveGames (method 3):', gameId)
+            }
+          }
+        } catch (error) {
+          console.warn('[createGame] Could not get game ID from getActiveGames (method 3):', error)
         }
       }
     } catch (error) {
-      console.warn('[createGame] ⚠️ Could not parse event from logs:', error)
+      console.warn('[createGame] Could not extract game ID from event:', error)
     }
-    
-    // Method 2: Use getGameCount - MOST RELIABLE (returns _gameIdCounter = latest game ID)
-    // Wait for transaction to be indexed
-    if (!gameId) {
-      try {
-        console.log('[createGame] ⏳ Waiting for transaction indexing, then using getGameCount...')
-        await new Promise(resolve => setTimeout(resolve, 10000)) // Wait 10 seconds for indexing
-        
-        const gameCount = await contract.getGameCount()
-        if (gameCount !== null && gameCount !== undefined) {
-          const countNum = Number(gameCount)
-          if (countNum > 0) {
-            gameId = countNum
-            console.log('[createGame] ✅✅✅ Game ID from getGameCount (method 2 - MOST RELIABLE):', gameId)
-          }
-        }
-      } catch (error: any) {
-        console.warn('[createGame] ⚠️ Could not get game count:', error?.message)
-      }
-    }
-    
-    // Method 3: Fallback to getActiveGames
-    if (!gameId) {
-      try {
-        console.log('[createGame] ⏳ Trying getActiveGames as fallback...')
-        await new Promise(resolve => setTimeout(resolve, 5000))
-        const activeGames = await contract.getActiveGames()
-        if (activeGames && activeGames.length > 0) {
-          const gameIds = activeGames.map((id: any) => Number(id)).filter((id: number) => id > 0)
-          if (gameIds.length > 0) {
-            gameId = Math.max(...gameIds)
-            console.log('[createGame] ✅ Game ID from getActiveGames (method 3):', gameId)
-          }
-        }
-      } catch (error: any) {
-        console.warn('[createGame] ⚠️ Could not get active games:', error?.message)
-      }
-    }
-    
-    // Final validation: Verify gameId with getGameCount
-    if (gameId) {
-      try {
-        await new Promise(resolve => setTimeout(resolve, 3000))
-        const gameCount = await contract.getGameCount().catch(() => null)
-        if (gameCount !== null) {
-          const maxGameId = Number(gameCount)
-          // Game ID should be <= maxGameId (newly created game)
-          if (gameId > maxGameId + 1) {
-            console.warn(`[createGame] ⚠️ Game ID ${gameId} > maxGameId ${maxGameId}, correcting...`)
-            gameId = maxGameId
-            console.log('[createGame] ✅ Corrected game ID:', gameId)
-          } else {
-            console.log(`[createGame] ✅ Game ID ${gameId} verified (maxGameId: ${maxGameId})`)
-          }
-        }
-      } catch (error) {
-        console.warn('[createGame] ⚠️ Could not verify game ID:', error)
-      }
-    }
-    
-    // Final check
-    if (!gameId) {
-      console.error('[createGame] ❌ CRITICAL: Could not extract game ID!')
-      console.error('[createGame] Transaction hash:', receipt.hash)
-      throw new Error('Could not extract game ID from transaction. Please check the transaction manually.')
-    }
-    
-    console.log('[createGame] ✅✅✅ Successfully extracted game ID:', gameId)
     
     // Return both hash and gameId if available
     return JSON.stringify({ hash: receipt.hash, gameId })
@@ -1156,196 +1123,13 @@ const getGameCompletedTxHash = async (gameId: number, chainIdParam?: number): Pr
   }
 }
 
-export const getGame = async (gameId: number, chainIdParam?: number, retryAttempt: number = 0): Promise<GameStruct> => {
-  const maxRetries = 20 // Increased retries for newly created games
-  const retryDelays = [3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 12000, 15000, 18000, 20000, 25000, 30000, 35000, 40000, 45000, 50000, 55000, 60000]
-  
+export const getGame = async (gameId: number, chainIdParam?: number): Promise<GameStruct> => {
   try {
-    console.log(`[getGame] ===== Fetching game ${gameId} (attempt ${retryAttempt + 1}/${maxRetries + 1}) =====`)
-    
-    if (!gameId || gameId <= 0 || !Number.isInteger(gameId)) {
-      throw new Error(`Invalid game ID: ${gameId}`)
-    }
-    
-    const chainId = chainIdParam || BASE_MAINNET_CHAIN_ID
-    const contract = await getReadOnlyContract(chainId)
-    console.log('[getGame] Contract address:', contract.target)
-    
-    // Step 1: Get maxGameId from contract
-    let maxGameId: number | null = null
-    try {
-      const gameCount = await contract.getGameCount()
-      maxGameId = Number(gameCount)
-      console.log(`[getGame] ✅ Contract has ${maxGameId} games (valid IDs: 1-${maxGameId})`)
-    } catch (error: any) {
-      console.warn('[getGame] ⚠️ Could not get game count:', error?.message)
-      // Continue without maxGameId check
-    }
-    
-    // Step 2: Validate gameId range
-    if (maxGameId !== null) {
-      // Game IDs start from 1, so valid range is 1 to maxGameId
-      // But for newly created games, gameId might be maxGameId (just created)
-      // Or maxGameId + 1 if still indexing
-      if (gameId < 1) {
-        throw new Error(`Game ${gameId} does not exist. Game IDs start from 1.`)
-      }
-      
-      // If gameId is way beyond maxGameId, it definitely doesn't exist
-      if (gameId > maxGameId + 3) {
-        throw new Error(`Game ${gameId} does not exist. Valid game IDs are 1-${maxGameId}.`)
-      }
-      
-      // If gameId is slightly above maxGameId, it might be a newly created game
-      if (gameId > maxGameId && gameId <= maxGameId + 3) {
-        if (retryAttempt < maxRetries) {
-          const delay = retryDelays[retryAttempt] || 5000
-          console.log(`[getGame] ⏳ Game ${gameId} is above maxGameId ${maxGameId} (newly created?). Waiting ${delay}ms and retrying...`)
-          await new Promise(resolve => setTimeout(resolve, delay))
-          return getGame(gameId, chainIdParam, retryAttempt + 1)
-        } else {
-          // After max retries, check one more time if maxGameId has updated
-          try {
-            const updatedGameCount = await contract.getGameCount()
-            const updatedMaxGameId = Number(updatedGameCount)
-            if (gameId <= updatedMaxGameId) {
-              console.log(`[getGame] ✅ maxGameId updated to ${updatedMaxGameId}, game ${gameId} is now valid`)
-              // Continue to fetch game
-            } else {
-              throw new Error(`Game ${gameId} does not exist. Valid game IDs are 1-${updatedMaxGameId}.`)
-            }
-          } catch (e: any) {
-            throw new Error(`Game ${gameId} does not exist. Valid game IDs are 1-${maxGameId}.`)
-          }
-        }
-      }
-    }
-    
-    // Step 3: Call contract.getGame()
-    console.log(`[getGame] 📞 Calling contract.getGame(${gameId})...`)
-    let game: any
-    try {
-      const gamePromise = contract.getGame(gameId)
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('getGame timeout after 15 seconds')), 15000)
-      })
-      
-      game = await Promise.race([gamePromise, timeoutPromise]) as any
-      console.log('[getGame] ✅ Contract call successful')
-    } catch (callError: any) {
-      const callErrorMsg = callError?.message || callError?.toString() || ''
-      console.error(`[getGame] ❌ Contract call error:`, callErrorMsg)
-      
-      // Check if it's a decode/revert error
-      const isDecodeError = callErrorMsg.includes('deferred error') || 
-                            callErrorMsg.includes('ABI decoding') ||
-                            callErrorMsg.includes('index 0') ||
-                            callErrorMsg.includes('could not decode') ||
-                            callErrorMsg.includes('BAD_DATA') ||
-                            callErrorMsg.includes('structure mismatch') ||
-                            callErrorMsg.includes('execution reverted') ||
-                            callErrorMsg.includes('revert')
-      
-      if (isDecodeError) {
-        // If gameId is in valid range, retry (might be indexing delay)
-        if (maxGameId === null || (gameId >= 1 && gameId <= maxGameId + 3)) {
-          if (retryAttempt < maxRetries) {
-            const delay = retryDelays[retryAttempt] || 5000
-            console.log(`[getGame] ⏳ Decode/revert error for game ${gameId} (valid range). Retrying in ${delay}ms... (attempt ${retryAttempt + 1}/${maxRetries})`)
-            await new Promise(resolve => setTimeout(resolve, delay))
-            return getGame(gameId, chainIdParam, retryAttempt + 1)
-          } else {
-            // Max retries reached
-            if (maxGameId !== null && gameId > maxGameId) {
-              throw new Error(`Game ${gameId} does not exist. Valid game IDs are 1-${maxGameId}.`)
-            }
-            throw new Error(`Game ${gameId} could not be loaded after ${maxRetries + 1} attempts. The game may still be indexing. Please wait and try again.`)
-          }
-        } else {
-          // Game ID is out of range
-          if (maxGameId !== null) {
-            throw new Error(`Game ${gameId} does not exist. Valid game IDs are 1-${maxGameId}.`)
-          }
-          throw new Error(`Game ${gameId} does not exist. Please verify the game ID is correct.`)
-        }
-      }
-      
-      // Handle timeout errors
-      if (callErrorMsg.includes('timeout') && retryAttempt < maxRetries) {
-        const delay = retryDelays[retryAttempt] || 5000
-        console.log(`[getGame] ⏳ Timeout error. Retrying in ${delay}ms... (attempt ${retryAttempt + 1}/${maxRetries})`)
-        await new Promise(resolve => setTimeout(resolve, delay))
-        return getGame(gameId, chainIdParam, retryAttempt + 1)
-      }
-      
-      // Re-throw other errors
-      throw callError
-    }
-    
-    // Step 4: Validate game data
-    if (!game || !game.id || Number(game.id) === 0) {
-      // Game data is invalid - retry if in valid range
-      if (maxGameId === null || (gameId >= 1 && gameId <= maxGameId + 3)) {
-        if (retryAttempt < maxRetries) {
-          const delay = retryDelays[retryAttempt] || 5000
-          console.log(`[getGame] ⏳ Game ${gameId} data is invalid. Retrying in ${delay}ms... (attempt ${retryAttempt + 1}/${maxRetries})`)
-          await new Promise(resolve => setTimeout(resolve, delay))
-          return getGame(gameId, chainIdParam, retryAttempt + 1)
-        } else {
-          throw new Error(`Game ${gameId} exists but could not be decoded after ${maxRetries + 1} attempts. The game may still be indexing.`)
-        }
-      }
-      throw new Error(`Game ${gameId} not found`)
-    }
-    
-    // Step 5: Verify game ID matches
-    const returnedGameId = Number(game.id)
-    if (returnedGameId !== gameId) {
-      console.warn(`[getGame] ⚠️ Game ID mismatch: requested ${gameId}, got ${returnedGameId}`)
-    }
-    
-    // Step 6: Structure and return game
-    console.log('[getGame] ✅ Game data received, structuring...')
-    const structured = await structuredGame(game, contract)
-    console.log(`[getGame] ✅✅✅ Successfully loaded game ${gameId}!`)
-    
-    return structured
+    const contract = await getReadOnlyContract(chainIdParam)
+    const game = await contract.getGame(gameId)
+    return await structuredGame(game, contract)
   } catch (error: any) {
-    console.error(`[getGame] Error (attempt ${retryAttempt + 1}):`, error)
-    const errorMsg = getErrorMessage(error)
-    console.error('[getGame] Error message:', errorMsg)
-    
-    // If it's a timeout or network error, retry if we haven't exceeded max retries
-    if ((errorMsg.includes('timeout') || errorMsg.includes('network') || errorMsg.includes('fetch') || errorMsg.includes('ECONNREFUSED')) && retryAttempt < maxRetries) {
-      const delay = retryDelays[retryAttempt] || 5000
-      console.log(`[getGame] Network/timeout error. Retrying in ${delay}ms... (attempt ${retryAttempt + 1}/${maxRetries})`)
-      await new Promise(resolve => setTimeout(resolve, delay))
-      return getGame(gameId, chainIdParam, retryAttempt + 1)
-    }
-    
-    // If it's a timeout or network error after max retries, provide more helpful message
-    if (errorMsg.includes('timeout') || errorMsg.includes('network') || errorMsg.includes('fetch') || errorMsg.includes('ECONNREFUSED')) {
-      throw new Error(`Failed to load game ${gameId}. Please check your network connection and try again.`)
-    }
-    
-    // If it's an ABI decoding error, provide specific message
-    if (errorMsg.includes('deferred error') || 
-        errorMsg.includes('ABI decoding') ||
-        errorMsg.includes('index 0') ||
-        errorMsg.includes('structure mismatch') ||
-        errorMsg.includes('could not decode')) {
-      // Check if we have maxGameId info
-      // This error might have been caught earlier, but if it reaches here, provide helpful message
-      if (errorMsg.includes('Valid game IDs are')) {
-        // Error already has helpful message, re-throw as is
-        throw error
-      }
-      // Generic decode error - provide helpful message
-      throw new Error(`Game ${gameId} could not be decoded after ${maxRetries + 1} attempts. The game may still be indexing on the blockchain. Please wait a moment and refresh the page.`)
-    }
-    
-    // Re-throw with original error message
-    throw new Error(errorMsg)
+    throw new Error(getErrorMessage(error))
   }
 }
 
