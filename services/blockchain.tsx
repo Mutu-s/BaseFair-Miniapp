@@ -1124,15 +1124,30 @@ const getGameCompletedTxHash = async (gameId: number, chainIdParam?: number): Pr
 }
 
 export const getGame = async (gameId: number, chainIdParam?: number, retryAttempt: number = 0): Promise<GameStruct> => {
-  const maxRetries = 5
-  const retryDelays = [2000, 3000, 5000, 8000, 10000]
+  const maxRetries = 10 // Increased retries
+  const retryDelays = [3000, 5000, 8000, 12000, 15000, 20000, 25000, 30000, 35000, 40000] // Longer delays
   
   try {
+    console.log(`[getGame] Fetching game ${gameId} (attempt ${retryAttempt + 1}/${maxRetries + 1})`)
     const contract = await getReadOnlyContract(chainIdParam)
-    const game = await contract.getGame(gameId)
+    
+    // Try to get game with timeout
+    const gamePromise = contract.getGame(gameId)
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('getGame timeout after 20 seconds')), 20000)
+    })
+    
+    const game = await Promise.race([gamePromise, timeoutPromise]) as any
+    
+    // Validate game data before structuring
+    if (!game || !game.id || Number(game.id) === 0) {
+      throw new Error(`Game ${gameId} returned invalid data`)
+    }
+    
     return await structuredGame(game, contract)
   } catch (error: any) {
     const errorMsg = error?.message || error?.toString() || ''
+    console.error(`[getGame] Error (attempt ${retryAttempt + 1}):`, errorMsg)
     
     // Handle ABI decoding errors - these often happen when game is still indexing
     const isDecodeError = errorMsg.includes('deferred error') || 
@@ -1140,24 +1155,51 @@ export const getGame = async (gameId: number, chainIdParam?: number, retryAttemp
                           errorMsg.includes('index 0') ||
                           errorMsg.includes('could not decode') ||
                           errorMsg.includes('BAD_DATA') ||
-                          errorMsg.includes('structure mismatch')
+                          errorMsg.includes('structure mismatch') ||
+                          errorMsg.includes('triggered accessing')
     
     // Retry on decode errors if we haven't exceeded max retries
     if (isDecodeError && retryAttempt < maxRetries) {
       const delay = retryDelays[retryAttempt] || 5000
-      console.log(`[getGame] ABI decode error for game ${gameId}. Retrying in ${delay}ms... (attempt ${retryAttempt + 1}/${maxRetries})`)
+      console.log(`[getGame] ⏳ ABI decode error for game ${gameId}. Waiting ${delay}ms and retrying... (attempt ${retryAttempt + 1}/${maxRetries})`)
       await new Promise(resolve => setTimeout(resolve, delay))
       return getGame(gameId, chainIdParam, retryAttempt + 1)
     }
     
     // Handle execution reverted (game doesn't exist)
     if (errorMsg.includes('execution reverted') || errorMsg.includes('revert')) {
+      // Check if it might be a newly created game by checking game count
+      try {
+        const contract = await getReadOnlyContract(chainIdParam)
+        const gameCount = await contract.getGameCount().catch(() => null)
+        if (gameCount !== null) {
+          const maxGameId = Number(gameCount)
+          if (gameId <= maxGameId + 1 && retryAttempt < 3) {
+            // Might be a newly created game, retry a few more times
+            const delay = 5000
+            console.log(`[getGame] ⏳ Game ${gameId} might be newly created (maxGameId: ${maxGameId}). Retrying in ${delay}ms...`)
+            await new Promise(resolve => setTimeout(resolve, delay))
+            return getGame(gameId, chainIdParam, retryAttempt + 1)
+          }
+          throw new Error(`Game ${gameId} does not exist. Valid game IDs are 1-${maxGameId}.`)
+        }
+      } catch (checkError) {
+        // Ignore check error, throw original
+      }
       throw new Error(`Game ${gameId} does not exist. Please verify the game ID is correct.`)
+    }
+    
+    // Handle timeout errors
+    if (errorMsg.includes('timeout') && retryAttempt < maxRetries) {
+      const delay = retryDelays[retryAttempt] || 5000
+      console.log(`[getGame] ⏳ Timeout error. Retrying in ${delay}ms... (attempt ${retryAttempt + 1}/${maxRetries})`)
+      await new Promise(resolve => setTimeout(resolve, delay))
+      return getGame(gameId, chainIdParam, retryAttempt + 1)
     }
     
     // If decode error after max retries
     if (isDecodeError) {
-      throw new Error(`Game ${gameId} could not be decoded after ${maxRetries + 1} attempts. The game may still be indexing on the blockchain. Please wait a moment and try again.`)
+      throw new Error(`Game ${gameId} could not be decoded after ${maxRetries + 1} attempts. The game may still be indexing on the blockchain. Please wait a moment and try again, or check the game ID.`)
     }
     
     throw new Error(getErrorMessage(error))
@@ -1499,6 +1541,11 @@ export const fulfillVRF = async (gameId: number): Promise<string> => {
 // Helper functions
 const structuredGame = async (game: any, contractInstance?: ethers.Contract): Promise<GameStruct> => {
   try {
+    // Validate game data first
+    if (!game || !game.id) {
+      throw new Error('Invalid game data: game or game.id is missing')
+    }
+    
     // Get players for this game
     // Use timeout to prevent hanging
     let players: string[] = []
@@ -1716,9 +1763,24 @@ const structuredGame = async (game: any, contractInstance?: ethers.Contract): Pr
     }
     
     return result
-  } catch (error) {
-    console.error('Error in structuredGame:', error)
-    // Return minimal valid game struct
+  } catch (error: any) {
+    const errorMsg = error?.message || error?.toString() || ''
+    console.error('Error in structuredGame:', errorMsg)
+    
+    // If it's an ABI decoding error, re-throw it so getGame can retry
+    const isDecodeError = errorMsg.includes('deferred error') || 
+                          errorMsg.includes('ABI decoding') ||
+                          errorMsg.includes('index 0') ||
+                          errorMsg.includes('could not decode') ||
+                          errorMsg.includes('BAD_DATA') ||
+                          errorMsg.includes('structure mismatch') ||
+                          errorMsg.includes('triggered accessing')
+    
+    if (isDecodeError) {
+      throw error // Re-throw so getGame can handle retry
+    }
+    
+    // Return minimal valid game struct for other errors
     const gameId = Number(game?.id || 0)
     return {
       id: gameId,
