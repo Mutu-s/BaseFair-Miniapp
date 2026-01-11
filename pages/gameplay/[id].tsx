@@ -1241,13 +1241,17 @@ const Page: NextPage = () => {
                 🔄 Retry Loading Game
               </button>
               <button
-                onClick={() => {
-                  // Force retry with a fresh fetch (getGame has built-in retry)
+                onClick={async () => {
+                  // Wait longer for blockchain indexing, then retry
                   setError(null)
                   setLoading(true)
+                  
+                  // Wait 10 seconds for blockchain indexing
+                  await new Promise(resolve => setTimeout(resolve, 10000))
+                  
                   const fetchGameData = async () => {
                     try {
-                      // getGame now has built-in retry mechanism, so just call it
+                      // getGame has built-in retry mechanism (up to 20 retries)
                       const game = await getGame(gameId!, BASE_MAINNET_CHAIN_ID)
                       const scores = await getScores(gameId!, BASE_MAINNET_CHAIN_ID).catch(() => [] as ScoreStruct[])
                       setGameData(game)
@@ -1260,11 +1264,11 @@ const Page: NextPage = () => {
                       setLoading(false)
                     }
                   }
-                  if (gameId) fetchGameData()
+                  if (gameId) await fetchGameData()
                 }}
                 className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors"
               >
-                ⏳ Wait & Retry (Recommended)
+                ⏳ Wait & Retry (Recommended - waits 10s)
               </button>
               <div>
                 <Link
