@@ -218,10 +218,12 @@ const CreateGame: React.FC = () => {
       localStorage.setItem('gameCreated', JSON.stringify({ chainId: validChainId, gameId, timestamp: Date.now() }))
       
       // Verify gameId is valid before redirecting
-      // If gameId is null, try to get it from getActiveGames or wait and retry
+      // If gameId is null, try multiple methods to get it
       if (!gameId) {
+        console.log('[CreateGame] ⚠️ Game ID not found in event, trying alternative methods...')
+        
+        // Method 1: Try getActiveGames (most reliable for getting latest game)
         try {
-          console.log('[CreateGame] Game ID not found in event, trying to get from getActiveGames...')
           await new Promise(resolve => setTimeout(resolve, 5000)) // Wait 5 seconds for indexing
           const activeGames = await getActiveGames(validChainId)
           if (activeGames && activeGames.length > 0) {
@@ -229,11 +231,37 @@ const CreateGame: React.FC = () => {
             const gameIds = activeGames.map(g => g.id).filter((id: number) => id > 0)
             if (gameIds.length > 0) {
               gameId = Math.max(...gameIds)
-              console.log('[CreateGame] ✅ Got game ID from getActiveGames:', gameId)
+              console.log('[CreateGame] ✅ Got game ID from getActiveGames (method 1):', gameId)
             }
           }
         } catch (e) {
-          console.warn('[CreateGame] Could not get game ID from getActiveGames:', e)
+          console.warn('[CreateGame] Could not get game ID from getActiveGames (method 1):', e)
+        }
+        
+        // Method 2: Try getActiveGames
+        if (!gameId) {
+          try {
+            await new Promise(resolve => setTimeout(resolve, 3000)) // Wait 3 more seconds
+            const activeGames = await getActiveGames(validChainId)
+            if (activeGames && activeGames.length > 0) {
+              // Get the highest game ID (likely the one we just created)
+              const gameIds = activeGames.map(g => g.id).filter((id: number) => id > 0)
+              if (gameIds.length > 0) {
+                gameId = Math.max(...gameIds)
+                console.log('[CreateGame] ✅ Got game ID from getActiveGames:', gameId)
+              }
+            }
+          } catch (e) {
+            console.warn('[CreateGame] Could not get game ID from getActiveGames:', e)
+          }
+        }
+        
+        // If still no gameId, show error but don't redirect
+        if (!gameId) {
+          console.error('[CreateGame] ❌ Could not get game ID from any method!')
+          setError('Game created but could not get game ID. Please check "My Games" page in a few moments.')
+          setIsSubmitting(false)
+          return
         }
       }
       

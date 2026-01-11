@@ -403,25 +403,62 @@ export const createGame = async (gameParams: GameParams): Promise<string> => {
       ]
       const eventInterface = new ethers.Interface(flipMatchLiteEventAbi)
       
-      // Method 1: Try to parse logs directly
-      const gameCreatedEvent = receipt.logs.find((log: any) => {
-        try {
-          const parsedLog = eventInterface.parseLog(log)
-          return parsedLog && parsedLog.name === 'GameCreated'
-        } catch {
-          return false
-        }
-      })
-      
-      if (gameCreatedEvent) {
-        try {
-          const parsedLog = eventInterface.parseLog(gameCreatedEvent)
-          if (parsedLog && parsedLog.args && parsedLog.args.length > 0) {
-            gameId = Number(parsedLog.args[0])
-            console.log('[createGame] Game ID from event (method 1):', gameId)
+      // Method 1: Try to parse logs directly using contract interface
+      // First try with the actual contract interface
+      try {
+        const contractInterface = contract.interface
+        for (const log of receipt.logs) {
+          try {
+            const parsedLog = contractInterface.parseLog(log)
+            if (parsedLog && parsedLog.name === 'GameCreated') {
+              // GameCreated event: gameId is the first indexed parameter
+              if (parsedLog.args && parsedLog.args.length > 0) {
+                gameId = Number(parsedLog.args[0])
+                console.log('[createGame] Game ID from contract interface (method 1a):', gameId)
+                break
+              }
+            }
+          } catch {
+            // Try with custom event interface
+            try {
+              const parsedLog = eventInterface.parseLog(log)
+              if (parsedLog && parsedLog.name === 'GameCreated') {
+                if (parsedLog.args && parsedLog.args.length > 0) {
+                  gameId = Number(parsedLog.args[0])
+                  console.log('[createGame] Game ID from custom event interface (method 1b):', gameId)
+                  break
+                }
+              }
+            } catch {
+              continue
+            }
           }
-        } catch (error) {
-          console.warn('[createGame] Could not parse GameCreated event (method 1):', error)
+        }
+      } catch (error) {
+        console.warn('[createGame] Could not parse logs with contract interface:', error)
+      }
+      
+      // Method 1b: Fallback - try to parse logs directly with custom interface
+      if (!gameId) {
+        const gameCreatedEvent = receipt.logs.find((log: any) => {
+          try {
+            const parsedLog = eventInterface.parseLog(log)
+            return parsedLog && parsedLog.name === 'GameCreated'
+          } catch {
+            return false
+          }
+        })
+        
+        if (gameCreatedEvent) {
+          try {
+            const parsedLog = eventInterface.parseLog(gameCreatedEvent)
+            if (parsedLog && parsedLog.args && parsedLog.args.length > 0) {
+              gameId = Number(parsedLog.args[0])
+              console.log('[createGame] Game ID from event (method 1c):', gameId)
+            }
+          } catch (error) {
+            console.warn('[createGame] Could not parse GameCreated event (method 1c):', error)
+          }
         }
       }
       
@@ -445,37 +482,78 @@ export const createGame = async (gameParams: GameParams): Promise<string> => {
       }
       
       // Method 3: Try to get the latest game ID by querying getGameCount
+      // This is the most reliable method for newly created games
       if (!gameId) {
         try {
-          // Wait a bit for the transaction to be indexed
-          await new Promise(resolve => setTimeout(resolve, 3000))
+          // Wait longer for the transaction to be indexed
+          console.log('[createGame] Waiting for transaction to be indexed before getting game ID...')
+          await new Promise(resolve => setTimeout(resolve, 5000))
           
-          // Try getGameCount first (more reliable)
+          // Try getGameCount first (most reliable)
           try {
             const gameCount = await contract.getGameCount()
-            if (gameCount && Number(gameCount) > 0) {
-              gameId = Number(gameCount)
-              console.log('[createGame] Game ID from getGameCount (method 3a):', gameId)
-            }
-          } catch (countError) {
-            console.warn('[createGame] Could not get game count, trying getActiveGames:', countError)
-          }
-          
-          // Fallback to getActiveGames
-          if (!gameId) {
-            const activeGames = await contract.getActiveGames()
-            if (activeGames && activeGames.length > 0) {
-              // Get the highest game ID (likely the one we just created)
-              const gameIds = activeGames.map((id: any) => Number(id)).filter((id: number) => id > 0)
-              if (gameIds.length > 0) {
-                gameId = Math.max(...gameIds)
-                console.log('[createGame] Game ID from getActiveGames (method 3b):', gameId)
+            if (gameCount !== null && gameCount !== undefined) {
+              const countNum = Number(gameCount)
+              if (countNum > 0) {
+                gameId = countNum
+                console.log('[createGame] ✅ Game ID from getGameCount (method 3a):', gameId)
               }
             }
+          } catch (countError: any) {
+            console.warn('[createGame] Could not get game count:', countError?.message)
           }
-        } catch (error) {
-          console.warn('[createGame] Could not get game ID from getGameCount/getActiveGames (method 3):', error)
+          
+          // Fallback to getActiveGames if getGameCount didn't work
+          if (!gameId) {
+            try {
+              await new Promise(resolve => setTimeout(resolve, 2000)) // Wait a bit more
+              const activeGames = await contract.getActiveGames()
+              if (activeGames && activeGames.length > 0) {
+                // Get the highest game ID (likely the one we just created)
+                const gameIds = activeGames.map((id: any) => Number(id)).filter((id: number) => id > 0)
+                if (gameIds.length > 0) {
+                  gameId = Math.max(...gameIds)
+                  console.log('[createGame] ✅ Game ID from getActiveGames (method 3b):', gameId)
+                }
+              }
+            } catch (activeGamesError: any) {
+              console.warn('[createGame] Could not get active games:', activeGamesError?.message)
+            }
+          }
+          
+          // Last resort: Try to get game ID by checking recent blocks
+          if (!gameId) {
+            try {
+              console.log('[createGame] Trying to get game ID from recent events...')
+              await new Promise(resolve => setTimeout(resolve, 3000))
+              const readOnlyContract = await getReadOnlyContract(networkChainId)
+              const filter = readOnlyContract.filters.GameCreated()
+              // Check last 5 blocks
+              const fromBlock = Math.max(0, receipt.blockNumber - 5)
+              const events = await readOnlyContract.queryFilter(filter, fromBlock, receipt.blockNumber)
+              if (events && events.length > 0) {
+                // Get the most recent event
+                const latestEvent = events[events.length - 1]
+                if (latestEvent && 'args' in latestEvent && latestEvent.args && Array.isArray(latestEvent.args) && latestEvent.args.length > 0) {
+                  gameId = Number(latestEvent.args[0])
+                  console.log('[createGame] ✅ Game ID from recent events (method 3c):', gameId)
+                }
+              }
+            } catch (eventError: any) {
+              console.warn('[createGame] Could not get game ID from events:', eventError?.message)
+            }
+          }
+        } catch (error: any) {
+          console.warn('[createGame] Could not get game ID from getGameCount/getActiveGames/events (method 3):', error?.message)
         }
+      }
+      
+      // Final validation: If we still don't have gameId, log warning but don't fail
+      if (!gameId) {
+        console.error('[createGame] ⚠️ WARNING: Could not extract game ID from any method! Transaction hash:', receipt.hash)
+        console.error('[createGame] User will need to manually find the game ID or wait for indexing')
+      } else {
+        console.log('[createGame] ✅ Successfully extracted game ID:', gameId)
       }
     } catch (error) {
       console.warn('[createGame] Could not extract game ID from event:', error)
@@ -1201,9 +1279,31 @@ export const getGame = async (gameId: number, chainIdParam?: number, retryAttemp
       if (gameCount !== null) {
         maxGameId = Number(gameCount)
         console.log(`[getGame] Contract has games up to ID ${maxGameId} (game IDs: 1-${maxGameId})`)
-        // Game IDs start from 1, so if maxGameId = 8, valid IDs are 1-8
-        // Only reject if gameId is clearly out of range
+        
+        // For newly created games, gameId might be exactly maxGameId
+        // Allow gameId to be maxGameId (newly created game)
+        // Only reject if gameId is clearly out of range (more than maxGameId or less than 1)
         if (gameId > maxGameId || gameId < 1) {
+          // If gameId is exactly maxGameId + 1, it might be a newly created game still indexing
+          // Retry many times before giving up (up to 10 retries)
+          if (gameId === maxGameId + 1 && retryAttempt < 10) {
+            const delay = retryDelays[retryAttempt] || 5000
+            console.log(`[getGame] Game ${gameId} is 1 more than maxGameId ${maxGameId}. This might be a newly created game still indexing. Retrying in ${delay}ms... (attempt ${retryAttempt + 1})`)
+            await new Promise(resolve => setTimeout(resolve, delay))
+            // Re-check maxGameId in case it has updated
+            return getGame(gameId, chainIdParam, retryAttempt + 1)
+          }
+          // If gameId is way out of range, it definitely doesn't exist
+          if (gameId > maxGameId + 5) {
+            throw new Error(`Game ${gameId} does not exist. Valid game IDs are 1-${maxGameId}.`)
+          }
+          // If it's close to maxGameId, retry a few more times
+          if (retryAttempt < 5) {
+            const delay = retryDelays[retryAttempt] || 5000
+            console.log(`[getGame] Game ${gameId} is out of range (maxGameId: ${maxGameId}), but might be indexing. Retrying in ${delay}ms... (attempt ${retryAttempt + 1})`)
+            await new Promise(resolve => setTimeout(resolve, delay))
+            return getGame(gameId, chainIdParam, retryAttempt + 1)
+          }
           throw new Error(`Game ${gameId} does not exist. Valid game IDs are 1-${maxGameId}.`)
         }
         // If gameId is exactly maxGameId, it's likely a newly created game
@@ -1275,7 +1375,19 @@ export const getGame = async (gameId: number, chainIdParam?: number, retryAttemp
       }
       
       // Handle execution reverted errors (game definitely doesn't exist)
+      // But for newly created games, this might be an indexing delay
       if (callErrorMsg.includes('execution reverted') || callErrorMsg.includes('revert')) {
+        // If gameId is close to maxGameId, it might be a newly created game
+        if (maxGameId !== null && gameId <= maxGameId + 1 && gameId >= maxGameId - 1) {
+          // This could be a newly created game still indexing
+          if (retryAttempt < maxRetries) {
+            const delay = retryDelays[retryAttempt] || 5000
+            console.log(`[getGame] Execution reverted for game ${gameId} (maxGameId: ${maxGameId}). This might be a newly created game. Retrying in ${delay}ms... (attempt ${retryAttempt + 1}/${maxRetries})`)
+            await new Promise(resolve => setTimeout(resolve, delay))
+            return getGame(gameId, chainIdParam, retryAttempt + 1)
+          }
+        }
+        
         if (maxGameId !== null) {
           throw new Error(`Game ${gameId} does not exist. Valid game IDs are 1-${maxGameId}.`)
         }
