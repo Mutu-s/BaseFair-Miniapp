@@ -222,37 +222,55 @@ const CreateGame: React.FC = () => {
       if (!gameId) {
         console.log('[CreateGame] ⚠️ Game ID not found in event, trying alternative methods...')
         
-        // Method 1: Try getActiveGames (most reliable for getting latest game)
+        // Method 1: Use getGameCount (most reliable - returns _gameIdCounter)
         try {
-          await new Promise(resolve => setTimeout(resolve, 5000)) // Wait 5 seconds for indexing
-          const activeGames = await getActiveGames(validChainId)
-          if (activeGames && activeGames.length > 0) {
-            // Get the highest game ID (likely the one we just created)
-            const gameIds = activeGames.map(g => g.id).filter((id: number) => id > 0)
-            if (gameIds.length > 0) {
-              gameId = Math.max(...gameIds)
-              console.log('[CreateGame] ✅ Got game ID from getActiveGames (method 1):', gameId)
+          await new Promise(resolve => setTimeout(resolve, 8000)) // Wait 8 seconds for indexing
+          const { getReadOnlyContract } = await import('@/services/blockchain')
+          const contract = await getReadOnlyContract(validChainId)
+          const gameCount = await contract.getGameCount()
+          if (gameCount !== null && gameCount !== undefined) {
+            const countNum = Number(gameCount)
+            if (countNum > 0) {
+              gameId = countNum
+              console.log('[CreateGame] ✅ Got game ID from getGameCount (method 1 - MOST RELIABLE):', gameId)
             }
           }
         } catch (e) {
-          console.warn('[CreateGame] Could not get game ID from getActiveGames (method 1):', e)
+          console.warn('[CreateGame] Could not get game ID from getGameCount (method 1):', e)
         }
         
-        // Method 2: Try getActiveGames
+        // Method 2: Try getActiveGames (fallback)
         if (!gameId) {
           try {
-            await new Promise(resolve => setTimeout(resolve, 3000)) // Wait 3 more seconds
+            await new Promise(resolve => setTimeout(resolve, 5000)) // Wait 5 more seconds
             const activeGames = await getActiveGames(validChainId)
             if (activeGames && activeGames.length > 0) {
               // Get the highest game ID (likely the one we just created)
               const gameIds = activeGames.map(g => g.id).filter((id: number) => id > 0)
               if (gameIds.length > 0) {
                 gameId = Math.max(...gameIds)
-                console.log('[CreateGame] ✅ Got game ID from getActiveGames:', gameId)
+                console.log('[CreateGame] ✅ Got game ID from getActiveGames (method 2):', gameId)
               }
             }
           } catch (e) {
-            console.warn('[CreateGame] Could not get game ID from getActiveGames:', e)
+            console.warn('[CreateGame] Could not get game ID from getActiveGames (method 2):', e)
+          }
+        }
+        
+        // Method 3: Try getActiveGames one more time
+        if (!gameId) {
+          try {
+            await new Promise(resolve => setTimeout(resolve, 5000)) // Wait 5 more seconds
+            const activeGames = await getActiveGames(validChainId)
+            if (activeGames && activeGames.length > 0) {
+              const gameIds = activeGames.map(g => g.id).filter((id: number) => id > 0)
+              if (gameIds.length > 0) {
+                gameId = Math.max(...gameIds)
+                console.log('[CreateGame] ✅ Got game ID from getActiveGames (method 3):', gameId)
+              }
+            }
+          } catch (e) {
+            console.warn('[CreateGame] Could not get game ID from getActiveGames (method 3):', e)
           }
         }
         
@@ -262,6 +280,46 @@ const CreateGame: React.FC = () => {
           setError('Game created but could not get game ID. Please check "My Games" page in a few moments.')
           setIsSubmitting(false)
           return
+        }
+      }
+      
+      // CRITICAL: Verify gameId is valid by checking with getGameCount
+      if (gameId) {
+        try {
+          const { getReadOnlyContract } = await import('@/services/blockchain')
+          const contract = await getReadOnlyContract(validChainId)
+          const gameCount = await contract.getGameCount().catch(() => null)
+          if (gameCount !== null) {
+            const maxGameId = Number(gameCount)
+            // Game ID should be <= maxGameId (or maxGameId + 1 if still indexing)
+            if (gameId > maxGameId + 2) {
+              console.error(`[CreateGame] ❌ Game ID ${gameId} is invalid! Max game ID is ${maxGameId}`)
+              setError(`Invalid game ID ${gameId}. Please check "My Games" page.`)
+              setIsSubmitting(false)
+              return
+            } else if (gameId > maxGameId) {
+              // Game ID is slightly higher than maxGameId - might still be indexing
+              console.log(`[CreateGame] ⚠️ Game ID ${gameId} is higher than maxGameId ${maxGameId}. Waiting for indexing...`)
+              // Wait a bit more and use maxGameId instead
+              await new Promise(resolve => setTimeout(resolve, 5000))
+              const updatedGameCount = await contract.getGameCount().catch(() => null)
+              if (updatedGameCount !== null) {
+                const updatedMaxGameId = Number(updatedGameCount)
+                if (gameId <= updatedMaxGameId) {
+                  console.log(`[CreateGame] ✅ Game ID ${gameId} is now valid (maxGameId updated to ${updatedMaxGameId})`)
+                } else if (gameId > updatedMaxGameId + 1) {
+                  // Still invalid, use maxGameId
+                  console.log(`[CreateGame] ⚠️ Game ID ${gameId} still invalid. Using maxGameId ${updatedMaxGameId} instead.`)
+                  gameId = updatedMaxGameId
+                }
+              }
+            } else {
+              console.log(`[CreateGame] ✅ Game ID ${gameId} verified (maxGameId: ${maxGameId})`)
+            }
+          }
+        } catch (e) {
+          console.warn('[CreateGame] Could not verify game ID with getGameCount:', e)
+          // Continue anyway - might be a contract version issue
         }
       }
       
