@@ -1123,12 +1123,43 @@ const getGameCompletedTxHash = async (gameId: number, chainIdParam?: number): Pr
   }
 }
 
-export const getGame = async (gameId: number, chainIdParam?: number): Promise<GameStruct> => {
+export const getGame = async (gameId: number, chainIdParam?: number, retryAttempt: number = 0): Promise<GameStruct> => {
+  const maxRetries = 5
+  const retryDelays = [2000, 3000, 5000, 8000, 10000]
+  
   try {
     const contract = await getReadOnlyContract(chainIdParam)
     const game = await contract.getGame(gameId)
     return await structuredGame(game, contract)
   } catch (error: any) {
+    const errorMsg = error?.message || error?.toString() || ''
+    
+    // Handle ABI decoding errors - these often happen when game is still indexing
+    const isDecodeError = errorMsg.includes('deferred error') || 
+                          errorMsg.includes('ABI decoding') ||
+                          errorMsg.includes('index 0') ||
+                          errorMsg.includes('could not decode') ||
+                          errorMsg.includes('BAD_DATA') ||
+                          errorMsg.includes('structure mismatch')
+    
+    // Retry on decode errors if we haven't exceeded max retries
+    if (isDecodeError && retryAttempt < maxRetries) {
+      const delay = retryDelays[retryAttempt] || 5000
+      console.log(`[getGame] ABI decode error for game ${gameId}. Retrying in ${delay}ms... (attempt ${retryAttempt + 1}/${maxRetries})`)
+      await new Promise(resolve => setTimeout(resolve, delay))
+      return getGame(gameId, chainIdParam, retryAttempt + 1)
+    }
+    
+    // Handle execution reverted (game doesn't exist)
+    if (errorMsg.includes('execution reverted') || errorMsg.includes('revert')) {
+      throw new Error(`Game ${gameId} does not exist. Please verify the game ID is correct.`)
+    }
+    
+    // If decode error after max retries
+    if (isDecodeError) {
+      throw new Error(`Game ${gameId} could not be decoded after ${maxRetries + 1} attempts. The game may still be indexing on the blockchain. Please wait a moment and try again.`)
+    }
+    
     throw new Error(getErrorMessage(error))
   }
 }
