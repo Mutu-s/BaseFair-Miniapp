@@ -217,172 +217,73 @@ const CreateGame: React.FC = () => {
       // Also set storage event for cross-tab communication
       localStorage.setItem('gameCreated', JSON.stringify({ chainId: validChainId, gameId, timestamp: Date.now() }))
       
-      // Verify gameId is valid before redirecting
-      // If gameId is null, try multiple methods to get it
+      // If gameId is null, createGame should have thrown an error
+      // But just in case, check one more time
       if (!gameId) {
-        console.log('[CreateGame] ⚠️ Game ID not found in event, trying alternative methods...')
-        
-        // Method 1: Use getGameCount (most reliable - returns _gameIdCounter)
-        try {
-          await new Promise(resolve => setTimeout(resolve, 15000)) // Wait 15 seconds for indexing (createGame waits 12s)
-          const { getReadOnlyContract } = await import('@/services/blockchain')
-          const contract = await getReadOnlyContract(validChainId)
-          const gameCount = await contract.getGameCount()
-          if (gameCount !== null && gameCount !== undefined) {
-            const countNum = Number(gameCount)
-            if (countNum > 0) {
-              gameId = countNum
-              console.log('[CreateGame] ✅ Got game ID from getGameCount (method 1 - MOST RELIABLE):', gameId)
-            }
-          }
-        } catch (e) {
-          console.warn('[CreateGame] Could not get game ID from getGameCount (method 1):', e)
-        }
-        
-        // Method 2: Try getActiveGames (fallback)
-        if (!gameId) {
-          try {
-            await new Promise(resolve => setTimeout(resolve, 5000)) // Wait 5 more seconds
-            const activeGames = await getActiveGames(validChainId)
-            if (activeGames && activeGames.length > 0) {
-              // Get the highest game ID (likely the one we just created)
-              const gameIds = activeGames.map(g => g.id).filter((id: number) => id > 0)
-              if (gameIds.length > 0) {
-                gameId = Math.max(...gameIds)
-                console.log('[CreateGame] ✅ Got game ID from getActiveGames (method 2):', gameId)
-              }
-            }
-          } catch (e) {
-            console.warn('[CreateGame] Could not get game ID from getActiveGames (method 2):', e)
-          }
-        }
-        
-        // Method 3: Try getActiveGames one more time
-        if (!gameId) {
-          try {
-            await new Promise(resolve => setTimeout(resolve, 5000)) // Wait 5 more seconds
-            const activeGames = await getActiveGames(validChainId)
-            if (activeGames && activeGames.length > 0) {
-              const gameIds = activeGames.map(g => g.id).filter((id: number) => id > 0)
-              if (gameIds.length > 0) {
-                gameId = Math.max(...gameIds)
-                console.log('[CreateGame] ✅ Got game ID from getActiveGames (method 3):', gameId)
-              }
-            }
-          } catch (e) {
-            console.warn('[CreateGame] Could not get game ID from getActiveGames (method 3):', e)
-          }
-        }
-        
-        // If still no gameId, show error but don't redirect
-        if (!gameId) {
-          console.error('[CreateGame] ❌ Could not get game ID from any method!')
-          setError('Game created but could not get game ID. Please check "My Games" page in a few moments.')
-          setIsSubmitting(false)
-          return
-        }
+        console.error('[CreateGame] ❌ CRITICAL: Game ID is null after createGame!')
+        setError('Game created but could not get game ID. Please check "My Games" page in a few moments.')
+        setIsSubmitting(false)
+        return
       }
       
-      // CRITICAL: Verify gameId is valid by checking with getGameCount
-      if (gameId) {
-        try {
-          const { getReadOnlyContract } = await import('@/services/blockchain')
-          const contract = await getReadOnlyContract(validChainId)
-          const gameCount = await contract.getGameCount().catch(() => null)
-          if (gameCount !== null) {
-            const maxGameId = Number(gameCount)
-            // Game ID should be <= maxGameId (or maxGameId + 1 if still indexing)
-            if (gameId > maxGameId + 2) {
-              console.error(`[CreateGame] ❌ Game ID ${gameId} is invalid! Max game ID is ${maxGameId}`)
-              setError(`Invalid game ID ${gameId}. Please check "My Games" page.`)
-              setIsSubmitting(false)
-              return
-            } else if (gameId > maxGameId) {
-              // Game ID is slightly higher than maxGameId - might still be indexing
-              console.log(`[CreateGame] ⚠️ Game ID ${gameId} is higher than maxGameId ${maxGameId}. Waiting for indexing...`)
-              // Wait a bit more and use maxGameId instead
-              await new Promise(resolve => setTimeout(resolve, 5000))
-              const updatedGameCount = await contract.getGameCount().catch(() => null)
-              if (updatedGameCount !== null) {
-                const updatedMaxGameId = Number(updatedGameCount)
-                if (gameId <= updatedMaxGameId) {
-                  console.log(`[CreateGame] ✅ Game ID ${gameId} is now valid (maxGameId updated to ${updatedMaxGameId})`)
-                } else if (gameId > updatedMaxGameId + 1) {
-                  // Still invalid, use maxGameId
-                  console.log(`[CreateGame] ⚠️ Game ID ${gameId} still invalid. Using maxGameId ${updatedMaxGameId} instead.`)
-                  gameId = updatedMaxGameId
-                }
-              }
-            } else {
-              console.log(`[CreateGame] ✅ Game ID ${gameId} verified (maxGameId: ${maxGameId})`)
-            }
+      // Verify gameId is valid (quick check)
+      try {
+        const { getReadOnlyContract } = await import('@/services/blockchain')
+        const contract = await getReadOnlyContract(validChainId)
+        const gameCount = await contract.getGameCount().catch(() => null)
+        if (gameCount !== null) {
+          const maxGameId = Number(gameCount)
+          // Game ID should be <= maxGameId (newly created game)
+          if (gameId > maxGameId + 1) {
+            console.warn(`[CreateGame] ⚠️ Game ID ${gameId} > maxGameId ${maxGameId}, correcting...`)
+            gameId = maxGameId
           }
-        } catch (e) {
-          console.warn('[CreateGame] Could not verify game ID with getGameCount:', e)
-          // Continue anyway - might be a contract version issue
+          console.log(`[CreateGame] ✅ Game ID ${gameId} verified (maxGameId: ${maxGameId})`)
         }
+      } catch (e) {
+        console.warn('[CreateGame] Could not verify game ID:', e)
+        // Continue anyway
       }
       
-      // If we have gameId, try to save to localStorage first, then redirect
-      if (gameId && playerAddress) {
-        console.log('[CreateGame] Saving game to localStorage before redirect...')
+      // Redirect immediately - don't wait for game fetch
+      // getGame will handle retries on the gameplay page
+      console.log('[CreateGame] ✅✅✅ Redirecting to game page:', `/gameplay/${gameId}`)
+      
+      // Save minimal game info to localStorage for quick access
+      if (playerAddress) {
         try {
-          // Try to fetch and save game immediately (with timeout)
-          const { getGame } = await import('@/services/blockchain')
           const { saveGameToStorage } = await import('@/utils/gameStorage')
-          
-          // Wait longer for transaction to be indexed (newly created games need more time)
-          // Increased to 15 seconds to ensure blockchain indexing (createGame waits 12s)
-          await new Promise(resolve => setTimeout(resolve, 15000))
-          
-          try {
-            // Try to fetch game with retry (getGame has built-in retry)
-            const game = await getGame(gameId, validChainId)
-            if (game) {
-              saveGameToStorage(game, validChainId, playerAddress)
-              console.log('[CreateGame] ✅ Saved game to localStorage:', gameId)
-            }
-          } catch (e) {
-            console.warn('[CreateGame] Could not fetch game, will save later:', e)
-            // Create a minimal game object for localStorage
-            const minimalGame = {
-              id: gameId,
-              name: game.name || `Game #${gameId}`,
-              creator: playerAddress,
-              gameType: game.gameType,
-              status: 0, // CREATED
-              stake: parseFloat(game.stake.toString()) || 0,
-              totalPrize: 0,
-              maxPlayers: game.maxPlayers,
-              currentPlayers: 1,
-              createdAt: Date.now(),
-              startedAt: 0,
-              completedAt: 0,
-              endTime: 0,
-              winner: '0x0000000000000000000000000000000000000000',
-              winnerFlipCount: 0,
-              vrfRequestId: '0x',
-              cardOrder: [],
-              vrfFulfilled: false,
-              players: [playerAddress],
-            }
-            saveGameToStorage(minimalGame as any, validChainId, playerAddress)
-            console.log('[CreateGame] ✅ Saved minimal game to localStorage:', gameId)
+          const minimalGame = {
+            id: gameId,
+            name: game.name || `Game #${gameId}`,
+            creator: playerAddress,
+            gameType: game.gameType,
+            status: 0, // CREATED
+            stake: parseFloat(game.stake.toString()) || 0,
+            totalPrize: 0,
+            maxPlayers: game.maxPlayers,
+            currentPlayers: 1,
+            createdAt: Date.now(),
+            startedAt: 0,
+            completedAt: 0,
+            endTime: 0,
+            winner: '0x0000000000000000000000000000000000000000',
+            winnerFlipCount: 0,
+            vrfRequestId: '0x',
+            cardOrder: [],
+            vrfFulfilled: false,
+            players: [playerAddress],
           }
+          saveGameToStorage(minimalGame as any, validChainId, playerAddress)
+          console.log('[CreateGame] ✅ Saved minimal game to localStorage')
         } catch (e) {
           console.warn('[CreateGame] Error saving to localStorage:', e)
         }
-        
-        // Redirect after saving
-        console.log('[CreateGame] Redirecting to game page:', `/gameplay/${gameId}`)
-        window.location.href = `/gameplay/${gameId}`
-        return // Don't continue with refresh logic
-      } else if (gameId) {
-        // gameId var ama playerAddress yok, yine de yönlendir
-        console.log('[CreateGame] Redirecting to game page (no player address):', `/gameplay/${gameId}`)
-        window.location.href = `/gameplay/${gameId}`
-        return
       }
+      
+      // Redirect immediately
+      window.location.href = `/gameplay/${gameId}`
+      return
       
       // If no gameId, wait a bit for the transaction to be indexed, then refresh
       console.log('[CreateGame] No gameId yet, waiting for transaction to be indexed...')
